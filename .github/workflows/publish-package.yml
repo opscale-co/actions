@@ -1,0 +1,41 @@
+name: Publish Tool to Packagist
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: 8.2
+        extensions: mbstring, pdo, pdo_mysql
+
+    - name: Configure Nova
+      run: composer config http-basic.nova.laravel.com "${NOVA_USERNAME}" "${NOVA_LICENSE_KEY}"
+
+    - name: Install PHP dependencies
+      run: composer install --prefer-dist --no-progress --no-suggest
+
+    - name: Install Node dependencies
+      run: npm install
+
+    - name: Generate production code
+      run: npm run prod
+        
+    - name: Run tests
+      run: ./vendor/bin/phpunit tests
+
+    - name: Publish to Packagist (curl)
+      run: |
+        curl -XPOST -H'content-type:application/json' \
+        "https://packagist.org/api/update-package?username=${{ secrets.PACKAGIST_USERNAME }}&apiToken=${{ secrets.PACKAGIST_TOKEN }}" \
+        -d'{"repository":{"url":"https://github.com/${{ github.repositoryUrl }}"}}'

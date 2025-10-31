@@ -1,0 +1,63 @@
+{
+    "name": ":vendor/:package_name",
+    "description": ":package_description",
+    "keywords": [
+        "laravel",
+        "nova",
+        "package",
+        "tool",
+        "opscale"
+    ],
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://nova.laravel.com"
+        }
+    ],
+    "homepage": "https://github.com/:vendor/:package_name",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": ":author_name",
+            "email": ":author_email",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=8.2",
+        "ext-readline": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            ":namespace_vendor\\:namespace_tool_name\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            ":namespace_vendor\\:namespace_tool_name\\Tests\\": "tests"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                ":namespace_vendor\\:namespace_tool_name\\ToolServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "require-dev": {
+        "laravel/nova": "^5.4",
+        "laravel/nova-devtool": "^1.0",
+        "phpunit/phpunit": "^10.5",
+        "tightenco/duster": "^2.7"
+    },
+    "script" : {
+        "post-autoload-dump": [
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+        ]
+    }
+}
