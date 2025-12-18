@@ -1,85 +1,86 @@
 {
-    "name": "opscale-co/actions",
-    "description": "Loris Leiva - Laravel Actions extension with Nova additions",
-    "keywords": [
-        "laravel",
-        "nova",
-        "package",
-        "tool",
-        "opscale"
-    ],
-    "repositories": [
-        {
-            "type": "composer",
-            "url": "https://nova.laravel.com"
-        }
-    ],
-    "homepage": "https://github.com/opscale-co/actions",
-    "license": "MIT",
-    "authors": [
-        {
-            "name": "Opscale",
-            "email": "development@opscale.co",
-            "role": "Developer"
-        }
-    ],
-    "require": {
-        "php": ">=8.2",
-        "lorisleiva/laravel-actions": "^2.9"
-    },
-    "autoload": {
-        "psr-4": {
-            "Opscale\\Actions\\": "src/"
-        }
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Opscale\\Actions\\Tests\\": "tests",
-            "Workbench\\App\\": "workbench/app/",
-            "Workbench\\Database\\Factories\\": "workbench/database/factories/",
-            "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
-        }
-    },
-    "extra": {
-        "laravel": {
-            "providers": [
-                "Opscale\\Actions\\ToolServiceProvider"
-            ]
-        }
-    },
-    "config": {
-        "sort-packages": true
-    },
-    "minimum-stability": "dev",
-    "prefer-stable": true,
-    "require-dev": {
-        "laravel/mcp": "*",
-        "laravel/nova": "^5.7",
-        "laravel/nova-devtool": "^1.0",
-        "phpunit/phpunit": "^10.5",
-        "tightenco/duster": "^2.7"
-    },
-     "scripts": {
-        "post-autoload-dump": [
-            "@clear",
-            "@prepare"
-        ],
-        "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
-        "prepare": "@php vendor/bin/testbench package:discover --ansi",
-        "build": "@php vendor/bin/testbench workbench:build --ansi",
-        "serve": [
-            "Composer\\Config::disableProcessTimeout",
-            "@build",
-            "@php vendor/bin/testbench serve --ansi"
-        ],
-        "mcp": [
-            "Composer\\Config::disableProcessTimeout",
-            "@php vendor/bin/testbench mcp:start actions-mcp"
-        ],
-        "inspect": [
-            "Composer\\Config::disableProcessTimeout",
-            "@build",
-            "@php vendor/bin/testbench mcp:inspector actions-mcp"
-        ]
+  "name": "opscale-co/actions",
+  "description": "Loris Leiva - Laravel Actions extension with Nova additions",
+  "keywords": [
+    "laravel",
+    "nova",
+    "package",
+    "tool",
+    "opscale"
+  ],
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://nova.laravel.com"
     }
+  ],
+  "homepage": "https://github.com/opscale-co/actions",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Opscale",
+      "email": "development@opscale.co",
+      "role": "Developer"
+    }
+  ],
+  "require": {
+    "php": ">=8.2",
+    "lorisleiva/laravel-actions": "^2.9"
+  },
+  "autoload": {
+    "psr-4": {
+      "Opscale\\Actions\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Opscale\\Actions\\Tests\\": "tests",
+      "Workbench\\App\\": "workbench/app/",
+      "Workbench\\Database\\Factories\\": "workbench/database/factories/",
+      "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Opscale\\Actions\\ToolServiceProvider"
+      ]
+    }
+  },
+  "config": {
+    "sort-packages": true
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "require-dev": {
+    "laravel/mcp": "*",
+    "laravel/nova": "^5.7",
+    "laravel/nova-devtool": "^1.0",
+    "phpunit/phpunit": "^10.5",
+    "tightenco/duster": "^2.7"
+  },
+  "scripts": {
+    "post-autoload-dump": [
+      "@clear",
+      "@prepare"
+    ],
+    "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
+    "prepare": "@php vendor/bin/testbench package:discover --ansi",
+    "build": "@php vendor/bin/testbench workbench:build --ansi",
+    "serve": [
+      "Composer\\Config::disableProcessTimeout",
+      "@build",
+      "@php vendor/bin/testbench serve --ansi"
+    ],
+    "mcp": [
+      "Composer\\Config::disableProcessTimeout",
+      "@php vendor/bin/testbench mcp:start actions-mcp"
+    ],
+    "inspect": [
+      "Composer\\Config::disableProcessTimeout",
+      "@build",
+      "@php vendor/bin/testbench mcp:inspector actions-mcp"
+    ]
+  },
+  "version": "1.0.0"
 }
