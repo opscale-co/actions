@@ -14,89 +14,140 @@ At Opscale, we’re passionate about contributing to the open-source community b
 
 Thanks for helping Opscale continue to scale! 🚀
 
-<!--delete-->
-
-## Using this skeleton (remove this section after you have completed these steps)
-
-This repo can be used to scaffold a Laravel package. Follow these steps to get started:
-
-1. Press the "Use this template" button at the top of this repo to create a new repo with the contents of this skeleton.
-
-2. Run "php ./configure.php" to run a script that will replace all placeholders throughout all the files.
-
-3. Check the GitHub Actions workflows you want to keep.
-
-4. If you want to publish your package in Packagist, you can use the publish.sh script.
-
-5. Keep in mind the template is configured with [Duster](https://github.com/tighten/duster) and [Commitlint](https://commitlint.js.org/) 
-
-6. Have fun creating your package.
-
----
-
-To use your customized package in a Nova app, add this line in the `require` section of the `composer.json` file:
-
-```
-
-":vendor/:package_name": "*",
-
-```
-
-In the same `composer.json` file add a `repositiories` section with the path to your package repo:
-
-```
-
-"repositories": [
-{
-    "type": "path",
-    "url": "../:package_name"
-},
-
-```
-
-Now you're ready to develop your package inside a Nova app.
-
-**When you are done with the steps above delete everything above!**
-
-<!--/delete-->
-
 ## Description
 
-:package_description
+> **One logic unit to rule them all.**
 
-Add a screenshot of the tool here.
+Encapsulate your business logic in atomic, self-contained classes and reuse them across your entire application stack. Write once, use everywhere.
+
+This package extends [Laravel Actions](https://laravelactions.com) with support for:
+- **Laravel Nova Actions** - Use actions directly as Nova actions
+- **Laravel MCP Tools** - Use actions as Model Context Protocol tools for AI
+
+The same logic can serve multiple audiences:
+- **For end users** → Nova Actions in your admin panel
+- **For administrators** → Artisan commands in the terminal
+- **For external systems** → API endpoints via controllers
+- **For AI agents** → MCP tools for intelligent automation
+
+![Actions demo](https://raw.githubusercontent.com/opscale-co/actions/refs/heads/main/screenshots/actions.gif)
 
 ## Installation
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/:vendor/:package_name.svg?style=flat-square)](https://packagist.org/packages/:vendor/:package_name)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/opscale-co/actions.svg?style=flat-square)](https://packagist.org/packages/opscale-co/actions)
 
-You can install the package in to a Laravel app that uses [Nova](https://nova.laravel.com) via composer:
+You can install the package via composer:
 
 ```bash
-
-composer require :vendor/:package_name
-
+composer require opscale-co/actions
 ```
 
-Next up, you must register the tool with Nova. This is typically done in the `tools` method of the `NovaServiceProvider`.
-
-```php
-
-// in app/Providers/NovaServiceProvider.php
-// ...
-public function tools()
-{
-    return [
-        // ...
-        new \:namespace_vendor\:namespace_tool_name\Tool(),
-    ];
-}
-
-```
+The package is automatically registered via Laravel's package discovery.
 
 ## Usage
 
-Click on the ":package_name" menu item in your Nova app to see the tool provided by this package.
+### Real-World Example: ResetPassword
+
+Here's a complete example showing how a single `ResetPassword` action can serve your entire application:
+
+```php
+use Opscale\Actions\Action;
+
+class ResetPassword extends Action
+{
+    public function identifier(): string
+    {
+        return 'reset-password';
+    }
+
+    public function name(): string
+    {
+        return 'Reset Password';
+    }
+
+    public function description(): string
+    {
+        return 'Resets a user\'s password';
+    }
+
+    public function parameters(): array
+    {
+        return [
+            [
+                'name' => 'email',
+                'description' => 'The email address of the user',
+                'type' => 'string',
+                'rules' => ['required', 'email', 'exists:users,email'],
+            ],
+            [
+                'name' => 'password',
+                'description' => 'The new password',
+                'type' => 'string',
+                'rules' => ['required', 'string', 'min:8'],
+            ],
+            [
+                'name' => 'password_confirmation',
+                'description' => 'Confirm the new password',
+                'type' => 'string',
+                'rules' => ['required', 'string', 'same:password'],
+            ],
+        ];
+    }
+
+    public function handle(array $attributes = []): array
+    {
+        $this->fill($attributes);
+        $validated = $this->validateAttributes();
+
+        $user = User::where('email', $validated['email'])->firstOrFail();
+        $user->update(['password' => Hash::make($validated['password'])]);
+
+        return [
+            'success' => true, 
+            'message' => 'Password reset successfully'
+        ];
+    }
+}
+```
+
+### One Action, Multiple Contexts
+
+Now this single class can be used everywhere:
+
+```php
+// For end users → Nova Action in admin panel
+// Register in your Nova Resource:
+public function actions(NovaRequest $request)
+{
+    return [
+        ResetPassword::make()
+    ];
+}
+
+// For administrators → Artisan command
+// php artisan reset-password --email=user@example.com --password=newpass123
+$this->commands([
+    ResetPassword::class,
+]);
+
+// For external systems → API endpoint
+Route::post('/api/reset-password', ResetPassword::class);
+
+// For AI agents → MCP tool
+// Register in your MCP Server:
+class PlatformServer extends Server
+{
+    protected array $tools = [
+        ResetPassword::class
+    ];
+}
+```
+
+### Opinionated Design
+
+This package is an opinionated implementation that enforces the use of `WithAttributes` from [Laravel Actions](https://laravelactions.com). All input data flows through `fill()` and `validateAttributes()`, ensuring consistent parameters validation and attribute handling across all contexts.
+
+The package provides a default behavior for all four audiences (Nova Actions, Artisan Commands, Controllers, and MCP Tools), so your actions work out of the box without additional configuration, but it can be overriden using the speficic methods for each output.
 
 ## Testing
 
@@ -116,11 +167,14 @@ Please see [CONTRIBUTING](https://github.com/opscale-co/.github/blob/main/CONTRI
 
 ## Security
 
-If you discover any security related issues, please email :author_email instead of using the issue tracker.
+If you discover any security related issues, please email development@opscale.co instead of using the issue tracker.
 
 ## Credits
 
-- [:author_name](https://github.com/:author_username)
+Built by [Opscale](https://github.com/opscale-co) on top of:
+- [Laravel Actions](https://laravelactions.com) by Loris Leiva
+- [Laravel Nova](https://nova.laravel.com) by Laravel
+- [Laravel MCP](https://github.com/laravel/mcp) by Laravel
 
 ## License
 

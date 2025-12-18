@@ -1,41 +1,65 @@
-name: Publish Tool to Packagist
+name: Publish Package
 
 on:
   push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+    branches:
+      - main
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
-  publish:
+  release:
+    name: Semantic Release
     runs-on: ubuntu-latest
-
+    
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
-    - name: Set up PHP
-      uses: shivammathur/setup-php@v2
-      with:
-        php-version: 8.2
-        extensions: mbstring, pdo, pdo_mysql
+      - name: 🟢 Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
-    - name: Configure Nova
-      run: composer config http-basic.nova.laravel.com "${NOVA_USERNAME}" "${NOVA_LICENSE_KEY}"
+      - name: 📦 Install Node dependencies
+        run: npm ci --ignore-scripts
 
-    - name: Install PHP dependencies
-      run: composer install --prefer-dist --no-progress --no-suggest
+      - name: 🐘 Setup PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: bcmath, ctype, fileinfo, json, mbstring, openssl, pdo, pdo_mysql, pdo_pgsql, tokenizer, xml, zip
+          coverage: none
 
-    - name: Install Node dependencies
-      run: npm install
+      - name: 📦 Get Composer Cache Directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
-    - name: Generate production code
-      run: npm run prod
-        
-    - name: Run tests
-      run: ./vendor/bin/phpunit tests
+      - name: 🗂️ Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
 
-    - name: Publish to Packagist (curl)
-      run: |
-        curl -XPOST -H'content-type:application/json' \
-        "https://packagist.org/api/update-package?username=${{ secrets.PACKAGIST_USERNAME }}&apiToken=${{ secrets.PACKAGIST_TOKEN }}" \
-        -d'{"repository":{"url":"https://github.com/${{ github.repositoryUrl }}"}}'
+      - name: 🔧 Install PHP dependencies
+        run: |
+          composer install --prefer-dist --no-progress --no-interaction --optimize-autoloader
+        env:
+          COMPOSER_AUTH: '{"http-basic": {"nova.laravel.com": {"username": "${{ secrets.NOVA_USERNAME }}", "password": "${{ secrets.NOVA_LICENSE_KEY }}"}}}'
+
+      - name: 🚢 Release with semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN  }}
+          PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME  }}
+          PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN  }}
+          GITHUB_REPOSITORY: ${{ github.repository  }}
+        run: npx semantic-release
+

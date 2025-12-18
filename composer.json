@@ -1,6 +1,6 @@
 {
-    "name": ":vendor/:package_name",
-    "description": ":package_description",
+    "name": "opscale-co/actions",
+    "description": "Loris Leiva - Laravel Actions extension with Nova additions",
     "keywords": [
         "laravel",
         "nova",
@@ -14,33 +14,36 @@
             "url": "https://nova.laravel.com"
         }
     ],
-    "homepage": "https://github.com/:vendor/:package_name",
+    "homepage": "https://github.com/opscale-co/actions",
     "license": "MIT",
     "authors": [
         {
-            "name": ":author_name",
-            "email": ":author_email",
+            "name": "Opscale",
+            "email": "development@opscale.co",
             "role": "Developer"
         }
     ],
     "require": {
         "php": ">=8.2",
-        "ext-readline": "*"
+        "lorisleiva/laravel-actions": "^2.9"
     },
     "autoload": {
         "psr-4": {
-            ":namespace_vendor\\:namespace_tool_name\\": "src/"
+            "Opscale\\Actions\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            ":namespace_vendor\\:namespace_tool_name\\Tests\\": "tests"
+            "Opscale\\Actions\\Tests\\": "tests",
+            "Workbench\\App\\": "workbench/app/",
+            "Workbench\\Database\\Factories\\": "workbench/database/factories/",
+            "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                ":namespace_vendor\\:namespace_tool_name\\ToolServiceProvider"
+                "Opscale\\Actions\\ToolServiceProvider"
             ]
         }
     },
@@ -50,14 +53,33 @@
     "minimum-stability": "dev",
     "prefer-stable": true,
     "require-dev": {
-        "laravel/nova": "^5.4",
+        "laravel/mcp": "*",
+        "laravel/nova": "^5.7",
         "laravel/nova-devtool": "^1.0",
         "phpunit/phpunit": "^10.5",
         "tightenco/duster": "^2.7"
     },
-    "script" : {
+     "scripts": {
         "post-autoload-dump": [
-            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+            "@clear",
+            "@prepare"
+        ],
+        "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
+        "prepare": "@php vendor/bin/testbench package:discover --ansi",
+        "build": "@php vendor/bin/testbench workbench:build --ansi",
+        "serve": [
+            "Composer\\Config::disableProcessTimeout",
+            "@build",
+            "@php vendor/bin/testbench serve --ansi"
+        ],
+        "mcp": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php vendor/bin/testbench mcp:start actions-mcp"
+        ],
+        "inspect": [
+            "Composer\\Config::disableProcessTimeout",
+            "@build",
+            "@php vendor/bin/testbench mcp:inspector actions-mcp"
         ]
     }
 }

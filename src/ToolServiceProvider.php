@@ -1,70 +1,34 @@
 <?php
 
-namespace :namespace_vendor\:namespace_tool_name;
+namespace Opscale\Actions;
 
-use Laravel\Nova\Events\ServingNova;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
-use :namespace_vendor\:namespace_tool_name\Http\Middleware\Authorize;
-use Laravel\Nova\Nova;
+use Lorisleiva\Actions\ActionManager;
+use Opscale\Actions\DesignPatterns\MCPToolDesignPattern;
+use Opscale\Actions\DesignPatterns\NovaActionDesignPattern;
 
 class ToolServiceProvider extends ServiceProvider
 {
-    public function boot()
+    /**
+     * Register any application services.
+     */
+    public function register(): void
     {
-        $this->loadRoutes();
-        /*$this->loadConfigs();
+        // Extend the ActionManager to include our custom design patterns
+        $this->app->afterResolving(ActionManager::class, function (ActionManager $manager) {
+            // Register Nova action design pattern
+            $manager->registerDesignPattern(new NovaActionDesignPattern);
 
-        if ($this->app->runningInConsole()) {
-            $this->loadCommands();
-            $this->loadMigrations();
-        }
-            
-        Nova::serving(function (ServingNova $event) {
-            $this->loadResources();
-        });*/
+            // Register MCP tool design pattern
+            $manager->registerDesignPattern(new MCPToolDesignPattern);
+        });
     }
 
-    public function register()
+    /**
+     * Bootstrap any application services.
+     */
+    public function boot(): void
     {
         //
     }
-
-    /*protected function loadResources()
-    {
-        Nova::resources([]);
-    }
-
-    protected function loadRoutes()
-    {
-        if ($this->app->routesAreCached()) {
-            return;
-        }
-
-        Route::middleware(['nova', Authorize::class])
-                ->prefix('nova-vendor/:vendor/:package_name')
-                ->group(__DIR__.'/../routes/api.php');
-    }
-                
-    protected function loadConfigs()
-    {
-        $filename = ':package_name.php';
-        $this->publishes([
-            __DIR__."/../config/$filename" => config_path($filename),
-        ]);
-    }
-
-    protected function loadCommands()
-    {
-        $this->commands([]);
-    }
-
-    protected function loadMigrations()
-    {
-        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
-
-        $this->publishesMigrations([
-            __DIR__.'/../database/migrations' => database_path('migrations'),
-        ]);
-    }*/
 }

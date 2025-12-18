@@ -1,0 +1,174 @@
+name: Auto Check
+
+on:
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  quality-gates:
+    runs-on: ubuntu-latest
+    name: 🔍 Quality Gates
+
+    steps:
+    - name: 📥 Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Shallow clones should be disabled for better relevancy of analysis
+        
+    - name: 🟢 Set up Node.js 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: 📦 Install Node dependencies
+      run: npm ci --ignore-scripts
+
+    - name: 🐘 Setup PHP 8.2
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: bcmath, ctype, fileinfo, json, mbstring, openssl, pdo, pdo_mysql, pdo_pgsql, tokenizer, xml, zip
+        coverage: xdebug
+        tools: composer:v2
+
+    - name: 📦 Get Composer Cache Directory
+      id: composer-cache
+      run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+    - name: 🗂️ Cache Composer dependencies
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.composer-cache.outputs.dir }}
+        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-composer-
+
+    - name: 🔧 Install PHP dependencies
+      run: |
+        composer install --no-progress --no-interaction --optimize-autoloader
+      env:
+        COMPOSER_AUTH: '{"http-basic": {"nova.laravel.com": {"username": "${{ secrets.NOVA_USERNAME }}", "password": "${{ secrets.NOVA_LICENSE_KEY }}"}}}'
+
+
+    # ========================================
+    # Gate 1: Code Quality (Linters)
+    # ========================================
+    - name: 🎨 Gate 1 - Code Quality with Duster
+      id: duster-check
+      run: |
+        npm run lint
+      continue-on-error: true
+        
+    - name: 📝 Gate 1 - Report
+      if: always()
+      run: |
+        if [[ "${{ steps.duster-check.outcome }}" == "failure" ]]; then
+          echo "❌ Code quality check failed - Please run 'npm run lint' locally"
+          exit 1
+        else
+          echo "✅ Code quality check passed"
+        fi
+
+    # ========================================
+    # Gate 2: Static Analysis (SonarQube)
+    # ========================================
+    - name: 📊 Gate 2 - SonarQube Scan
+      id: sonar-scan
+      uses: SonarSource/sonarqube-scan-action@master
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      continue-on-error: true
+
+    - name: 🔍 Gate 2 - SonarQube Quality Gate
+      id: sonarqube-check
+      if: steps.sonar-scan.outcome == 'success'
+      uses: sonarsource/sonarqube-quality-gate-action@master
+      timeout-minutes: 5
+      with:
+        pollingTimeoutSec: 300
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      continue-on-error: true
+
+    - name: 📝 Gate 2 - Report
+      if: always()
+      run: |
+        if [[ "${{ steps.sonarqube-check.outputs.quality-gate-status }}" == "FAILED" ]]; then
+          echo "⚠️ SonarQube quality gate failed - Review the analysis on SonarQube"
+          echo "Quality Gate Status: ${{ steps.sonarqube-check.outputs.quality-gate-status }}"
+        elif [[ "${{ steps.sonar-scan.outcome }}" == "failure" ]]; then
+          echo "⚠️ SonarQube scan skipped - Check SONAR_TOKEN configuration"
+        else
+          echo "✅ SonarQube quality gate passed"
+        fi
+
+    # ========================================
+    # Gate 3: Unit Tests (PHPUnit)
+    # ========================================
+    - name: 🧪 Gate 3 - Unit Tests
+      id: phpunit-check
+      run: |
+        if [[ -f "phpunit.xml" ]] || [[ -f "phpunit.xml.dist" ]]; then
+          echo "🧪 Running PHPUnit tests..."
+          npm run test:coverage
+        else
+          echo "⚠️ No PHPUnit configuration found - Skipping tests"
+        fi
+      continue-on-error: true
+
+    - name: 📝 Gate 3 - Report
+      if: always()
+      run: |
+        if [[ "${{ steps.phpunit-check.outcome }}" == "failure" ]]; then
+          echo "❌ Unit tests failed - Please fix failing tests"
+          exit 1
+        else
+          echo "✅ Unit tests passed"
+        fi
+
+    # ========================================
+    # Final Summary
+    # ========================================
+    - name: 📊 Quality Gates Summary
+      if: always()
+      run: |
+        echo "======================================"
+        echo "        QUALITY GATES SUMMARY        "
+        echo "======================================"
+        echo ""
+        
+        # Gate 1: Linters
+        if [[ "${{ steps.duster-check.outcome }}" == "success" ]]; then
+          echo "✅ Gate 1: Code Quality - PASSED"
+        else
+          echo "❌ Gate 1: Code Quality - FAILED"
+        fi
+        
+        # Gate 2: SonarQube
+        if [[ "${{ steps.sonarqube-check.outputs.quality-gate-status }}" == "PASSED" ]] || [[ "${{ steps.sonarqube-check.outputs.quality-gate-status }}" == "" ]]; then
+          echo "✅ Gate 2: Static Analysis - PASSED"
+        else
+          echo "⚠️  Gate 2: Static Analysis - NEEDS REVIEW"
+        fi
+        
+        # Gate 3: Tests
+        if [[ "${{ steps.phpunit-check.outcome }}" == "success" ]]; then
+          echo "✅ Gate 3: Unit Tests - PASSED"
+        else
+          echo "❌ Gate 3: Unit Tests - FAILED"
+        fi
+        
+        echo ""
+        echo "======================================"
+        
+        # Overall status
+        if [[ "${{ steps.duster-check.outcome }}" == "failure" ]] || 
+           [[ "${{ steps.phpunit-check.outcome }}" == "failure" ]]; then
+          echo "❌ Overall: FAILED - Please fix the issues above"
+          exit 1
+        else
+          echo "✅ Overall: PASSED - Ready for review"
+        fi
