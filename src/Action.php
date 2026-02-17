@@ -10,6 +10,7 @@ use Opscale\Actions\Adapters\MCPToolAdapter;
 use Opscale\Actions\Adapters\NovaActionAdapter;
 use Opscale\Actions\Concerns\AsMCPTool;
 use Opscale\Actions\Concerns\AsNovaAction;
+use Opscale\Actions\Concerns\SerializesModels;
 
 /**
  * Abstract base class for all Opscale actions.
@@ -85,6 +86,7 @@ abstract class Action
     use ControllerAdapter;
     use MCPToolAdapter;
     use NovaActionAdapter;
+    use SerializesModels;
     use WithAttributes;
 
     /**
@@ -210,6 +212,13 @@ abstract class Action
      * @return array The result of the action execution
      */
     abstract public function handle(array $attributes = []): array;
+
+    /**
+     * Get prefill data for each parameter, including default values and options.
+     *
+     * @return array<string, array{default: mixed, options: array}>
+     */
+    public function prefill(): array {}
 
     /**
      * Get the validation rules for this action.

@@ -176,21 +176,19 @@ trait CommandAdapter
         $rules = $parameter['rules'] ?? [];
         $isRequired = $this->isParameterRequired($parameter);
 
-        // Check for 'in:' rule to offer choices
-        $choices = $this->extractChoicesFromRules($rules);
-
-        if (! empty($choices)) {
-            return $this->promptChoice($command, $description, $choices, $isRequired);
-        }
-
         // Handle boolean type
         if ($type === 'boolean' || $type === 'bool') {
             return $command->confirm($description, $parameter['default'] ?? false);
         }
 
-        // Handle array type
-        if ($type === 'array') {
-            return $this->promptArray($command, $description, $isRequired);
+        // Handle class type: use prefill options as choices
+        if ($type === 'array' || class_exists($type)) {
+            $prefill = $this->prefill();
+            $options = $prefill[$name] ?? [];
+
+            if (! empty($options)) {
+                return $this->promptChoice($command, $description, $options, $isRequired);
+            }
         }
 
         // Default: ask for text input
@@ -232,45 +230,6 @@ trait CommandAdapter
         $value = $command->choice($description, $choicesWithEmpty);
 
         return $value === '(none)' ? null : $value;
-    }
-
-    /**
-     * Prompt for array values.
-     */
-    protected function promptArray(Command $command, string $description, bool $required): array
-    {
-        $command->info($description . ' (enter values one per line, empty line to finish)');
-        $values = [];
-
-        while (true) {
-            $value = $command->ask('Value (or empty to finish)');
-            if ($value === null || $value === '') {
-                break;
-            }
-            $values[] = $value;
-        }
-
-        if ($required && empty($values)) {
-            $command->error('At least one value is required.');
-
-            return $this->promptArray($command, $description, $required);
-        }
-
-        return $values;
-    }
-
-    /**
-     * Extract choices from validation rules (e.g., 'in:a,b,c').
-     */
-    protected function extractChoicesFromRules(array $rules): array
-    {
-        foreach ($rules as $rule) {
-            if (is_string($rule) && str_starts_with($rule, 'in:')) {
-                return explode(',', substr($rule, 3));
-            }
-        }
-
-        return [];
     }
 
     /**

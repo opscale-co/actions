@@ -132,24 +132,35 @@ trait NovaActionAdapter
      */
     protected function createNovaField(string $name, string $type, array $rules): mixed
     {
+        $field = null;
         $label = str_replace('_', ' ', ucfirst($name));
+        $prefill = $this->prefill();
 
-        // Check if there's an 'in:' rule for select options
-        $choices = $this->extractChoicesFromRulesForNovaField($rules);
-        if (! empty($choices)) {
-            return Select::make($label, $name)->options(array_combine($choices, $choices));
+        if ($type === 'array' || class_exists($type)) {
+            $options = $prefill[$name];
+
+            $field = Select::make($label, $name)
+                ->options($options)
+                ->displayUsingLabels();
+        } elseif ($field = $this->fieldFromRule($label, $name, $rules)) {
+            $field = $this->fieldFromType($label, $name, $type, $rules);
+        } else {
+            $field = Text::make($label, $name);
         }
 
-        // Check for rule-based field mapping first (rules take priority)
-        $ruleBasedField = $this->createNovaFieldFromRules($label, $name, $rules);
-        if ($ruleBasedField !== null) {
-            return $ruleBasedField;
-        }
+        $field->default($prefill[$name] ?? null);
+        $field->rules($rules);
 
-        // Check for max length to determine if textarea is needed
-        $maxLength = $this->extractMaxLengthFromRulesForNovaField($rules);
+        return $field;
+    }
 
-        // Fall back to type-based field mapping
+    /**
+     * Create a Nova field based on the parameter type.
+     */
+    protected function fieldFromType(string $label, string $name, string $type, array $rules): mixed
+    {
+        $maxLength = $this->extractMaxLengthFromRules($rules);
+
         return match ($type) {
             'int', 'integer' => Number::make($label, $name),
             'float', 'double', 'number' => Number::make($label, $name)->step(0.01),
@@ -163,7 +174,8 @@ trait NovaActionAdapter
             'url' => URL::make($label, $name),
             'color' => Color::make($label, $name),
             'json', 'code' => Code::make($label, $name)->json(),
-            'array', 'keyvalue' => KeyValue::make($label, $name),
+            'array' => Select::make($label, $name),
+            'keyvalue' => KeyValue::make($label, $name),
             default => $maxLength !== null && $maxLength > 255
                 ? Textarea::make($label, $name)
                 : Text::make($label, $name),
@@ -175,7 +187,7 @@ trait NovaActionAdapter
      *
      * @return mixed|null
      */
-    protected function createNovaFieldFromRules(string $label, string $name, array $rules): mixed
+    protected function fieldFromRule(string $label, string $name, array $rules): mixed
     {
         foreach ($rules as $rule) {
             $ruleName = is_string($rule) ? explode(':', $rule)[0] : null;
@@ -225,23 +237,9 @@ trait NovaActionAdapter
     }
 
     /**
-     * Extract choices from validation rules for Nova field.
+     * Extract max length from validation rules.
      */
-    protected function extractChoicesFromRulesForNovaField(array $rules): array
-    {
-        foreach ($rules as $rule) {
-            if (is_string($rule) && str_starts_with($rule, 'in:')) {
-                return explode(',', substr($rule, 3));
-            }
-        }
-
-        return [];
-    }
-
-    /**
-     * Extract max length from validation rules for Nova field.
-     */
-    protected function extractMaxLengthFromRulesForNovaField(array $rules): ?int
+    protected function extractMaxLengthFromRules(array $rules): ?int
     {
         foreach ($rules as $rule) {
             if (is_string($rule) && str_starts_with($rule, 'max:')) {

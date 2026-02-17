@@ -54,6 +54,13 @@ class NovaActionDecorator extends Action
         // Fall back to handle, passing the fields as array
         if ($this->hasMethod('handle')) {
             $attributes = $fields->toArray();
+
+            if ($models->count() === 1) {
+                $attributes['model'] = $models->first();
+            } else {
+                $attributes['models'] = $models;
+            }
+
             $result = $this->resolveAndCallMethod('handle', $attributes);
 
             if (empty($result)) {

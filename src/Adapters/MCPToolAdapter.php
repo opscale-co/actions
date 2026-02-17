@@ -74,8 +74,14 @@ trait MCPToolAdapter
                 $property = $property->description($description);
             }
 
-            // Add enum if 'in:' rule exists
-            $choices = $this->extractChoicesFromRulesForSchema($rules);
+            // Add enum from prefill options or 'in:' rule
+            if ($type === 'array' || class_exists($type)) {
+                $prefill = $this->prefill();
+                $choices = $prefill[$name] ?? [];
+            } else {
+                $choices = $this->extractChoices($rules);
+            }
+
             if (! empty($choices)) {
                 $property = $property->enum($choices);
             }
@@ -126,6 +132,10 @@ trait MCPToolAdapter
      */
     protected function createSchemaProperty(JsonSchema $schema, string $type): mixed
     {
+        if (class_exists($type)) {
+            return $schema->string();
+        }
+
         return match ($type) {
             'int', 'integer' => $schema->integer(),
             'float', 'double', 'number' => $schema->number(),
@@ -139,7 +149,7 @@ trait MCPToolAdapter
     /**
      * Extract choices from validation rules for schema.
      */
-    protected function extractChoicesFromRulesForSchema(array $rules): array
+    protected function extractChoices(array $rules): array
     {
         foreach ($rules as $rule) {
             if (is_string($rule) && str_starts_with($rule, 'in:')) {

@@ -17,12 +17,6 @@ class NovaActionDesignPattern extends DesignPattern
 
     public function recognizeFrame(BacktraceFrame $frame): bool
     {
-        // Nova actions are resolved when:
-        // 1. Resource::actions() is called (returns array of actions)
-        // 2. ResolvesActions::resolveActions() wraps them in ActionCollection
-        //
-        // We match when the action is instantiated during the actions() method call
-        // on any class that uses the ResolvesActions trait (Nova Resources)
         if ($frame->function !== 'actions') {
             return false;
         }
@@ -36,7 +30,44 @@ class NovaActionDesignPattern extends DesignPattern
         // Check if the object uses ResolvesActions trait (Nova Resources)
         $traits = class_uses_recursive($object);
 
-        return in_array(ResolvesActions::class, $traits, true);
+        if (! in_array(ResolvesActions::class, $traits, true)) {
+            return false;
+        }
+
+        // Only apply when the action is directly called inside actions(),
+        // not when resolved from a helper method (e.g. renderTemplateActions()).
+        // We check that no other method on the same resource class sits between
+        // the action resolution (identifyAndDecorate) and the actions() frame.
+        $resourceClass = get_class($object);
+        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+
+        $pastIdentify = false;
+
+        foreach ($backtrace as $bt) {
+            if (! $pastIdentify) {
+                if (($bt['function'] ?? null) === 'identifyAndDecorate') {
+                    $pastIdentify = true;
+                }
+
+                continue;
+            }
+
+            $btClass = $bt['class'] ?? null;
+            $btFunction = $bt['function'] ?? null;
+
+            // We reached the actions() frame — it's a direct call.
+            if ($btClass === $resourceClass && $btFunction === 'actions') {
+                return true;
+            }
+
+            // Another method on the same resource sits between resolve and actions()
+            // (e.g. renderTemplateActions()), so this is not a direct call.
+            if ($btClass === $resourceClass) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function decorate($instance, BacktraceFrame $frame)
