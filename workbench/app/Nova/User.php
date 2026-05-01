@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Workbench\App\Nova;
 
 use Illuminate\Http\Request;
@@ -111,7 +113,7 @@ class User extends Resource
     final public function actions(NovaRequest $request): array
     {
         return [
-            ResetPassword::make(),
+            ResetPassword::make()->showAsButton(),
         ];
     }
 }

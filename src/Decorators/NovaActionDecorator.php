@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Opscale\Actions\Decorators;
 
 use Illuminate\Support\Collection;
@@ -8,10 +10,12 @@ use Laravel\Nova\Actions\Action;
 use Laravel\Nova\Fields\ActionFields;
 use Laravel\Nova\Http\Requests\NovaRequest;
 use Lorisleiva\Actions\Concerns\DecorateActions;
+use Opscale\NovaToolbarActions\ShowAsButton;
 
 class NovaActionDecorator extends Action
 {
     use DecorateActions;
+    use ShowAsButton;
 
     /**
      * Create a new Nova action decorator instance.

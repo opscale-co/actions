@@ -4,6 +4,7 @@
 /build
 /vendor
 /node_modules
+/.data
 composer.phar
 phpunit.xml
 mix-manifest.json

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Opscale\Actions;
 
 use Lorisleiva\Actions\Concerns\AsAction;
@@ -218,7 +220,10 @@ abstract class Action
      *
      * @return array<string, array{default: mixed, options: array}>
      */
-    public function prefill(): array {}
+    public function prefill(): array
+    {
+        return [];
+    }
 
     /**
      * Get the validation rules for this action.

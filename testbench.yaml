@@ -1,8 +1,12 @@
 laravel: '@testbench'
 
 providers:
+  - Lorisleiva\Actions\ActionServiceProvider
+  - Inertia\ServiceProvider
   - Laravel\Nova\NovaCoreServiceProvider
   - Laravel\Nova\NovaServiceProvider
+  - Laravel\Fortify\FortifyServiceProvider
+  - Laravel\Dusk\DuskServiceProvider
   - Workbench\App\Providers\WorkbenchServiceProvider
   - Workbench\App\Providers\NovaServiceProvider
   - Opscale\Actions\ToolServiceProvider
@@ -12,6 +16,7 @@ seeders:
 
 workbench:
   start: /nova
+  install: true
   build:
     - package:discover
     - asset-publish

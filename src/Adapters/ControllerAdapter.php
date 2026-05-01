@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Opscale\Actions\Adapters;
 
 use Illuminate\Http\JsonResponse;

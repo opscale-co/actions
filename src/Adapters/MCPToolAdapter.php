@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Opscale\Actions\Adapters;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -118,7 +120,7 @@ trait MCPToolAdapter
         } catch (ValidationException $e) {
             $errors = [];
             foreach ($e->errors() as $field => $messages) {
-                $errors[] = "{$field}: " . implode(', ', $messages);
+                $errors[] = "{$field}: ".implode(', ', $messages);
             }
 
             return Response::error(implode("\n", $errors));

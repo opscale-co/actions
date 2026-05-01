@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Workbench\App\Services\Actions;
 
 use Illuminate\Support\Facades\Hash;

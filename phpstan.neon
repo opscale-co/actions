@@ -1,0 +1,29 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - vendor/opscale-co/strict-rules/rules.clean.neon
+    - vendor/opscale-co/strict-rules/rules.ddd.neon
+    - vendor/opscale-co/strict-rules/rules.smells.neon
+    - vendor/opscale-co/strict-rules/rules.solid.neon
+
+parameters:
+    level: 9
+    phpVersion: 80200
+    paths:
+        - src
+        - tests
+        - workbench/app
+    excludePaths:
+        - tests/fixtures/*
+    ignoreErrors:
+        # Service providers follow Laravel patterns that conflict with strict SOLID rules
+        -
+            message: '#.*#'
+            path: '*ServiceProvider.php'
+
+        # Tests require direct instantiation and helpers — strict DIP/helper rules don't apply
+        -
+            identifier: solid.dip.disallowInstantiation
+            path: tests/*
+        -
+            identifier: smells.helpersRestriction.helper
+            path: tests/*

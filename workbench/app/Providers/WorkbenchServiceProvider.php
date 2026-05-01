@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Workbench\App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Laravel\Mcp\Facades\Mcp;
+use Lorisleiva\Actions\Facades\Actions;
 use Workbench\App\MCP\Servers\PlatformServer;
 use Workbench\App\Services\Actions\ResetPassword;
 
@@ -21,9 +24,7 @@ class WorkbenchServiceProvider extends ServiceProvider
      */
     protected function registerCommand(): void
     {
-        $this->commands([
-            ResetPassword::class,
-        ]);
+        Actions::registerCommandsForAction(ResetPassword::class);
     }
 
     /**

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Workbench\App\MCP\Servers;
 
 use Laravel\Mcp\Server;

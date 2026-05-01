@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Opscale\Actions\Concerns;
 
 use Illuminate\Queue\SerializesAndRestoresModelIdentifiers;

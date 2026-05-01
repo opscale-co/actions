@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Opscale\Actions\Adapters;
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Laravel\Nova\Actions\Action;
 use Laravel\Nova\Fields\ActionFields;
@@ -106,6 +109,9 @@ trait NovaActionAdapter
             $this->fill($attributes);
             $validatedData = $this->validateAttributes();
 
+            $label = $this->resolveParameterLabel($models);
+            $validatedData[$label] = $models;
+
             $result = $this->handle($validatedData);
 
             if (empty($result)) {
@@ -118,13 +124,33 @@ trait NovaActionAdapter
         } catch (ValidationException $e) {
             $errors = [];
             foreach ($e->errors() as $field => $messages) {
-                $errors[] = "{$field}: " . implode(', ', $messages);
+                $errors[] = "{$field}: ".implode(', ', $messages);
             }
 
             return Action::danger(implode("\n", $errors));
         } catch (Throwable $e) {
             return Action::danger($e->getMessage());
         }
+    }
+
+    /**
+     * Build a snake_case identifier for the models the action is being run against.
+     *
+     * Singular form when exactly one model is selected (e.g. `user`, `order_item`);
+     * plural otherwise (e.g. `users`, `order_items`). Returns an empty string when
+     * the action is run with no targeted models (standalone actions).
+     */
+    protected function resolveParameterLabel(Collection $models): string
+    {
+        $first = $models->first();
+
+        if ($first === null) {
+            return '';
+        }
+
+        $singular = Str::snake(class_basename($first));
+
+        return $models->count() === 1 ? $singular : Str::plural($singular);
     }
 
     /**

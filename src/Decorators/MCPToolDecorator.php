@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Opscale\Actions\Decorators;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
