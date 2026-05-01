@@ -2,6 +2,11 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## <small>1.0.2 (2026-02-17)</small>
+
+* Merge branch 'main' of https://github.com/opscale-co/actions ([b491fd1](https://github.com/opscale-co/actions/commit/b491fd1))
+* fix(novaactiondesignpattern): fixed decoration when ont int actions ([817194d](https://github.com/opscale-co/actions/commit/817194d))
+
 ## <small>1.0.1 (2026-02-17)</small>
 
 * Merge branch 'main' of https://github.com/opscale-co/actions ([f92845a](https://github.com/opscale-co/actions/commit/f92845a))
