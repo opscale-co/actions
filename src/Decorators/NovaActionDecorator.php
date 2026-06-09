@@ -31,6 +31,8 @@ class NovaActionDecorator extends Action
         $this->name = $this->fromActionMethodOrProperty('getActionTitle', 'actionTitle', $title);
         $this->uriKey = $this->fromActionMethodOrProperty('getActionUriKey', 'actionUriKey', $uriKey);
 
+        $this->canSee(fn () => (bool) $this->resolveAndCallMethod('canRun', []));
+
         $this->showAsButton();
     }
 

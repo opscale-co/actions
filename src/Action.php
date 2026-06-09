@@ -226,6 +226,14 @@ abstract class Action
     }
 
     /**
+     * Determine whether the current user is authorized to run this action.
+     */
+    public function canRun(): bool
+    {
+        return true;
+    }
+
+    /**
      * Get the validation rules for this action.
      *
      * This method converts the parameters schema into Laravel validation rules
