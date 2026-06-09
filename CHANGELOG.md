@@ -2,6 +2,10 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## 1.2.0 (2026-06-09)
+
+* feat(decorator): translate action titles through the app locale ([4b20243](https://github.com/opscale-co/actions/commit/4b20243))
+
 ## 1.1.0 (2026-06-09)
 
 * feat(decorator): render every decorated action as a toolbar button ([dc7c207](https://github.com/opscale-co/actions/commit/dc7c207))
