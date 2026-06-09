@@ -2,6 +2,12 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## <small>1.0.3 (2026-06-09)</small>
+
+* fix(action): ensure prefill() returns array as declared ([750a71d](https://github.com/opscale-co/actions/commit/750a71d))
+* Merge branch 'main' of https://github.com/opscale-co/actions ([4284b19](https://github.com/opscale-co/actions/commit/4284b19))
+* chore(project): bootstrap spec-kit, testing stack, and feature additions ([3671c2b](https://github.com/opscale-co/actions/commit/3671c2b))
+
 ## <small>1.0.2 (2026-02-17)</small>
 
 * Merge branch 'main' of https://github.com/opscale-co/actions ([b491fd1](https://github.com/opscale-co/actions/commit/b491fd1))
