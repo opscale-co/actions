@@ -2,6 +2,10 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## 1.1.0 (2026-06-09)
+
+* feat(decorator): render every decorated action as a toolbar button ([dc7c207](https://github.com/opscale-co/actions/commit/dc7c207))
+
 ## <small>1.0.4 (2026-06-09)</small>
 
 * fix(adapter): handle missing prefill options without crashing ([58b4e84](https://github.com/opscale-co/actions/commit/58b4e84))
