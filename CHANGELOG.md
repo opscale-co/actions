@@ -2,6 +2,10 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## <small>1.2.1 (2026-06-09)</small>
+
+* Revert "feat(decorator): translate action titles through the app locale" ([4d5f989](https://github.com/opscale-co/actions/commit/4d5f989))
+
 ## 1.2.0 (2026-06-09)
 
 * feat(decorator): translate action titles through the app locale ([4b20243](https://github.com/opscale-co/actions/commit/4b20243))
