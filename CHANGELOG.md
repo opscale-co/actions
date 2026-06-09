@@ -2,6 +2,11 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## 1.3.0 (2026-06-09)
+
+* fix(adapter): apply api middleware to controller routes ([7799a93](https://github.com/opscale-co/actions/commit/7799a93))
+* feat(action): add canRun authorization gate for Nova decorator ([3819ff8](https://github.com/opscale-co/actions/commit/3819ff8))
+
 ## <small>1.2.1 (2026-06-09)</small>
 
 * Revert "feat(decorator): translate action titles through the app locale" ([4d5f989](https://github.com/opscale-co/actions/commit/4d5f989))
