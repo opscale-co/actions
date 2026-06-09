@@ -28,7 +28,7 @@ class NovaActionDecorator extends Action
         $title = Str::headline($className);
         $uriKey = Str::slug(Str::snake($className));
 
-        $this->name = __($this->fromActionMethodOrProperty('getActionTitle', 'actionTitle', $title));
+        $this->name = $this->fromActionMethodOrProperty('getActionTitle', 'actionTitle', $title);
         $this->uriKey = $this->fromActionMethodOrProperty('getActionUriKey', 'actionUriKey', $uriKey);
 
         $this->showAsButton();
