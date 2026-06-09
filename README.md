@@ -107,8 +107,17 @@ class ResetPassword extends Action
             'message' => 'Password reset successfully'
         ];
     }
+
+    public function canRun(): bool
+    {
+        return auth()->user()?->can('reset-passwords') ?? false;
+    }
 }
 ```
+
+### Authorization
+
+Every action exposes a `canRun(): bool` method that defaults to `true`. Override it to gate execution based on the current user, feature flags, or any custom rule. The Nova decorator wires this into Nova's `canSee`, so unauthorized actions are automatically hidden from the toolbar.
 
 ### One Action, Multiple Contexts
 
