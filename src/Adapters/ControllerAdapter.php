@@ -26,7 +26,7 @@ trait ControllerAdapter
      */
     public function getControllerMiddleware(): array
     {
-        return [/*'api'*/];
+        return ['api'];
     }
 
     /**
