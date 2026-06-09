@@ -2,6 +2,10 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## <small>1.0.4 (2026-06-09)</small>
+
+* fix(adapter): handle missing prefill options without crashing ([58b4e84](https://github.com/opscale-co/actions/commit/58b4e84))
+
 ## <small>1.0.3 (2026-06-09)</small>
 
 * fix(action): ensure prefill() returns array as declared ([750a71d](https://github.com/opscale-co/actions/commit/750a71d))
