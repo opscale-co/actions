@@ -58,7 +58,10 @@ trait NovaActionAdapter
      *
      * Populates the shared {@see Opscale\Actions\Action::context()} bag with
      * the values declared by {@see novaContext()} so {@see prefill()} can
-     * read them.
+     * read them. Called automatically by both {@see getActionFields()} (at
+     * field-render time) and {@see asNovaAction()} (at execution time) so
+     * context is ready in either phase, regardless of how the action is
+     * invoked (through the decorator or directly).
      */
     public function bootNovaContext(?NovaRequest $request = null, ?Collection $models = null): void
     {
@@ -86,9 +89,16 @@ trait NovaActionAdapter
 
     /**
      * Get the action fields built from parameters().
+     *
+     * Populates the execution context first so {@see prefill()} can compute
+     * values from the active request, user, and selected models — context
+     * MUST be available before fields are decided, not just at handle time.
      */
-    public function getActionFields(): array
+    public function getActionFields(?NovaRequest $request = null): array
     {
+        $request = $request ?? app(NovaRequest::class);
+        $this->bootNovaContext($request, $this->resolveSelectedModels($request));
+
         $fields = [];
         $prefill = $this->prefill();
         $options = $this->options();
@@ -140,11 +150,10 @@ trait NovaActionAdapter
     public function asNovaAction(ActionFields $fields, Collection $models): mixed
     {
         try {
-            // Defensive: when invoked outside the decorator path, the context
-            // bag may still be empty. Re-populate so prefill() always sees
-            // the latest models alongside whatever the decorator already set.
-            $this->models = $models;
-            $this->context = $this->novaContext();
+            $this->bootNovaContext(
+                $this->novaRequest ?? app(NovaRequest::class),
+                $models,
+            );
 
             $attributes = array_merge($fields->toArray(), $this->prefill());
 
@@ -186,8 +195,54 @@ trait NovaActionAdapter
         return array_filter([
             'request' => $this->novaRequest,
             'user' => $this->novaRequest?->user(),
+            'resource' => $this->resolveResourceClass($this->novaRequest),
             'models' => $this->models,
         ]);
+    }
+
+    /**
+     * Resolve the Nova Resource class the action is being invoked from.
+     *
+     * Returns the resource class-string (e.g. `App\Nova\User`) or null when
+     * the request has no resource binding — for instance during standalone
+     * actions or when the lookup aborts because the resource key is missing.
+     */
+    protected function resolveResourceClass(?NovaRequest $request): ?string
+    {
+        if ($request === null || ! method_exists($request, 'resource')) {
+            return null;
+        }
+
+        try {
+            return $request->resource();
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Resolve the models the user selected on the resource index/detail page
+     * so they are available to {@see prefill()} during field rendering.
+     */
+    protected function resolveSelectedModels(?NovaRequest $request): ?Collection
+    {
+        if ($request === null || ! method_exists($request, 'selectedResources')) {
+            return null;
+        }
+
+        try {
+            $models = $request->selectedResources();
+        } catch (Throwable) {
+            return null;
+        }
+
+        if ($models === null) {
+            return null;
+        }
+
+        $collection = $models instanceof Collection ? $models : collect($models);
+
+        return $collection->isEmpty() ? null : $collection;
     }
 
     /**

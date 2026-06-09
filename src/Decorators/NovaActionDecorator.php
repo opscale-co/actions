@@ -34,14 +34,15 @@ class NovaActionDecorator extends Action
 
     /**
      * Get the fields available on the action.
+     *
+     * Delegates to the action's getActionFields($request) which populates
+     * context internally — so prefill() can read the active request, user,
+     * and selected models before deciding which fields to render.
      */
     public function fields(NovaRequest $request): array
     {
-        if ($this->hasMethod('bootNovaContext')) {
-            $this->resolveAndCallMethod('bootNovaContext', [
-                'request' => $request,
-                'models' => $this->resolveSelectedModels($request),
-            ]);
+        if ($this->hasMethod('getActionFields')) {
+            return $this->resolveAndCallMethod('getActionFields', ['request' => $request]);
         }
 
         return $this->fromActionMethodOrProperty('getActionFields', 'actionFields', []);
@@ -54,13 +55,6 @@ class NovaActionDecorator extends Action
      */
     public function handle(ActionFields $fields, Collection $models)
     {
-        if ($this->hasMethod('bootNovaContext')) {
-            $this->resolveAndCallMethod('bootNovaContext', [
-                'request' => app(NovaRequest::class),
-                'models' => $models,
-            ]);
-        }
-
         // Call asNovaAction if it exists, passing the ActionFields and models
         if ($this->hasMethod('asNovaAction')) {
             return $this->resolveAndCallMethod('asNovaAction', [
@@ -87,32 +81,5 @@ class NovaActionDecorator extends Action
 
             return Action::message('Operation completed successfully.');
         }
-    }
-
-    /**
-     * Resolve the models the user selected on the resource index/detail page.
-     *
-     * Returns a collection (possibly empty) so the action can populate context
-     * with the targeted models before the form fields are even rendered. When
-     * the request carries no resource selection (e.g. standalone actions),
-     * returns null so the context bag omits the key entirely.
-     */
-    protected function resolveSelectedModels(NovaRequest $request): ?Collection
-    {
-        if (! method_exists($request, 'selectedResources')) {
-            return null;
-        }
-
-        try {
-            $models = $request->selectedResources();
-        } catch (\Throwable) {
-            return null;
-        }
-
-        if ($models === null || $models->isEmpty()) {
-            return null;
-        }
-
-        return $models instanceof Collection ? $models : collect($models);
     }
 }
