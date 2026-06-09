@@ -163,11 +163,15 @@ trait NovaActionAdapter
         $prefill = $this->prefill();
 
         if ($type === 'array' || class_exists($type)) {
-            $options = $prefill[$name];
-
-            $field = Select::make($label, $name)
-                ->options($options)
-                ->displayUsingLabels();
+            if (! empty($prefill[$name])) {
+                $field = Select::make($label, $name)
+                    ->options($prefill[$name])
+                    ->displayUsingLabels();
+            } elseif ($type === 'array') {
+                $field = KeyValue::make($label, $name);
+            } else {
+                $field = Text::make($label, $name);
+            }
         } elseif ($field = $this->fieldFromRule($label, $name, $rules)) {
             $field = $this->fieldFromType($label, $name, $type, $rules);
         } else {
