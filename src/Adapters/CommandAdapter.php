@@ -35,6 +35,11 @@ trait CommandAdapter
     public ?string $commandHelp = null;
 
     /**
+     * Current Artisan command instance, populated when running as command.
+     */
+    public ?Command $command = null;
+
+    /**
      * Get the command signature.
      *
      * Uses identifier() as the command name and appends optional arguments
@@ -43,11 +48,17 @@ trait CommandAdapter
     public function getCommandSignature(): string
     {
         $signature = $this->identifier();
+        $prefill = $this->prefill();
 
-        // Append optional arguments for each parameter
-        // Parameters will be collected interactively if not provided
+        // Append optional arguments for each parameter. Prefilled parameters
+        // are not exposed as CLI arguments since they are authoritative.
         foreach ($this->parameters() as $parameter) {
             $name = $parameter['name'];
+
+            if (array_key_exists($name, $prefill)) {
+                continue;
+            }
+
             $signature .= " {{$name}?}";
         }
 
@@ -116,7 +127,10 @@ trait CommandAdapter
     public function asCommand(Command $command): int
     {
         try {
-            $parameters = $this->collectArguments($command);
+            $this->command = $command;
+            $this->context = $this->commandContext();
+
+            $parameters = array_merge($this->collectArguments($command), $this->prefill());
 
             $this->fill($parameters);
             $validatedData = $this->validateAttributes();
@@ -142,22 +156,42 @@ trait CommandAdapter
     }
 
     /**
+     * Declare the context values this adapter publishes into the shared
+     * {@see Opscale\Actions\Action::context()} bag.
+     *
+     * @return array<string, mixed>
+     */
+    protected function commandContext(): array
+    {
+        return array_filter([
+            'command' => $this->command,
+        ]);
+    }
+
+    /**
      * Collect parameters from command arguments or interactively.
      *
      * @return array<string, mixed>
      */
     protected function collectArguments(Command $command): array
     {
-        $parameters = $this->parameters();
+        $prefill = $this->prefill();
+        $options = $this->options();
         $collected = [];
 
-        foreach ($parameters as $parameter) {
+        foreach ($this->parameters() as $parameter) {
             $name = $parameter['name'];
-            $value = $command->argument($name);
+
+            // Prefilled parameters are not solicited from the user.
+            if (array_key_exists($name, $prefill)) {
+                continue;
+            }
+
+            $value = $command->hasArgument($name) ? $command->argument($name) : null;
 
             // If no value provided as argument, prompt interactively
             if ($value === null) {
-                $value = $this->promptForArgument($command, $parameter);
+                $value = $this->promptForArgument($command, $parameter, $options[$name] ?? null);
             }
 
             // Cast the value to the appropriate type
@@ -170,27 +204,21 @@ trait CommandAdapter
     /**
      * Prompt the user for a parameter value.
      */
-    protected function promptForArgument(Command $command, array $parameter): mixed
+    protected function promptForArgument(Command $command, array $parameter, ?array $options = null): mixed
     {
         $name = $parameter['name'];
         $description = $parameter['description'] ?? Str::headline($name);
         $type = $parameter['type'] ?? 'string';
-        $rules = $parameter['rules'] ?? [];
         $isRequired = $this->isParameterRequired($parameter);
+
+        // Options-driven parameter: render as a choice prompt
+        if (! empty($options)) {
+            return $this->promptChoice($command, $description, array_values($options), $isRequired);
+        }
 
         // Handle boolean type
         if ($type === 'boolean' || $type === 'bool') {
             return $command->confirm($description, $parameter['default'] ?? false);
-        }
-
-        // Handle class type: use prefill options as choices
-        if ($type === 'array' || class_exists($type)) {
-            $prefill = $this->prefill();
-            $options = $prefill[$name] ?? [];
-
-            if (! empty($options)) {
-                return $this->promptChoice($command, $description, $options, $isRequired);
-            }
         }
 
         // Default: ask for text input

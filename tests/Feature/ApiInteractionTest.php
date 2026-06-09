@@ -16,7 +16,6 @@ beforeEach(function (): void {
 it('invokes the action via HTTP POST and returns the result as JSON', function (): void {
     $response = $this->postJson('/test/echo', [
         'name' => 'order-1',
-        'count' => 7,
         'price' => 19.95,
         'active' => true,
         'tags' => ['priority', 'rush'],
@@ -26,11 +25,22 @@ it('invokes the action via HTTP POST and returns the result as JSON', function (
     $response->assertOk()
         ->assertJsonPath('success', true)
         ->assertJsonPath('data.received.name', 'order-1')
-        ->assertJsonPath('data.received.count', 7)
+        // count is prefilled, so the action always sees 10 regardless of input
+        ->assertJsonPath('data.received.count', 10)
         ->assertJsonPath('data.received.price', 19.95)
         ->assertJsonPath('data.received.active', true)
         ->assertJsonPath('data.received.tags', ['priority', 'rush'])
         ->assertJsonPath('data.received.status', 'active');
+});
+
+it('prefill wins over a user-supplied value for the same parameter', function (): void {
+    $response = $this->postJson('/test/echo', [
+        'name' => 'override-attempt',
+        'count' => 999,
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('data.received.count', 10);
 });
 
 it('rejects an HTTP request that is missing a required field', function (): void {

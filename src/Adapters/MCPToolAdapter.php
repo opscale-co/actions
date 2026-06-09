@@ -31,6 +31,11 @@ trait MCPToolAdapter
     public bool $shouldRegisterTool = true;
 
     /**
+     * Current MCP request, populated when running as MCP tool.
+     */
+    public ?Request $mcpRequest = null;
+
+    /**
      * Get the tool name (identifier).
      */
     public function getToolName(): string
@@ -60,9 +65,18 @@ trait MCPToolAdapter
     public function getToolSchema(JsonSchema $schema): array
     {
         $properties = [];
+        $prefill = $this->prefill();
+        $options = $this->options();
 
         foreach ($this->parameters() as $parameter) {
             $name = $parameter['name'];
+
+            // Prefilled parameters are not exposed in the schema — the action
+            // provides them authoritatively.
+            if (array_key_exists($name, $prefill)) {
+                continue;
+            }
+
             $type = $parameter['type'] ?? 'string';
             $description = $parameter['description'] ?? '';
             $rules = $parameter['rules'] ?? [];
@@ -76,16 +90,11 @@ trait MCPToolAdapter
                 $property = $property->description($description);
             }
 
-            // Add enum from prefill options or 'in:' rule
-            if ($type === 'array' || class_exists($type)) {
-                $prefill = $this->prefill();
-                $choices = $prefill[$name] ?? [];
-            } else {
-                $choices = $this->extractChoices($rules);
-            }
+            // Enum is sourced from options() first, then falls back to `in:` rule
+            $choices = $options[$name] ?? $this->extractChoices($rules);
 
             if (! empty($choices)) {
-                $property = $property->enum($choices);
+                $property = $property->enum(array_values($choices));
             }
 
             // Mark as required if needed
@@ -105,7 +114,10 @@ trait MCPToolAdapter
     public function asMCPTool(Request $request): Response
     {
         try {
-            $arguments = $request->toArray() ?? [];
+            $this->mcpRequest = $request;
+            $this->context = $this->mcpContext();
+
+            $arguments = array_merge($request->toArray() ?? [], $this->prefill());
 
             $this->fill($arguments);
             $validatedData = $this->validateAttributes();
@@ -127,6 +139,19 @@ trait MCPToolAdapter
         } catch (Throwable $e) {
             return Response::error($e->getMessage());
         }
+    }
+
+    /**
+     * Declare the context values this adapter publishes into the shared
+     * {@see Opscale\Actions\Action::context()} bag.
+     *
+     * @return array<string, mixed>
+     */
+    protected function mcpContext(): array
+    {
+        return array_filter([
+            'request' => $this->mcpRequest,
+        ]);
     }
 
     /**

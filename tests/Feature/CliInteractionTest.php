@@ -16,9 +16,10 @@ uses(RefreshDatabase::class);
 beforeEach(function (): void {
     Actions::registerCommandsForAction(EchoAction::class);
 
+    // `count` is prefilled, so it is no longer a CLI argument — the command
+    // signature skips prefilled parameters entirely.
     $this->cliArgs = fn (array $overrides = []): array => array_merge([
         'name' => 'cli-run',
-        'count' => '3',
         'price' => '4.5',
         'active' => '1',
         'tags' => 'one',

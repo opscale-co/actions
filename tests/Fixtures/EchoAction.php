@@ -95,7 +95,15 @@ final class EchoAction extends Action
     {
         return [
             'count' => 10,
-            'tags' => ['a', 'b', 'c'],
+        ];
+    }
+
+    /**
+     * @return array<string, array<int, mixed>>
+     */
+    public function options(): array
+    {
+        return [
             'status' => ['active', 'inactive', 'pending'],
         ];
     }

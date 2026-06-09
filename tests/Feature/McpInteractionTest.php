@@ -13,7 +13,6 @@ uses(RefreshDatabase::class);
 it('invokes the action through the MCP tool adapter and echoes every type back', function (): void {
     $request = new Request([
         'name' => 'mcp-run',
-        'count' => 5,
         'price' => 12.34,
         'active' => true,
         'tags' => ['x', 'y'],
@@ -28,11 +27,22 @@ it('invokes the action through the MCP tool adapter and echoes every type back',
     $payload = json_decode((string) $response->content(), true);
 
     expect($payload['received']['name'])->toBe('mcp-run')
-        ->and($payload['received']['count'])->toBe(5)
+        // count is prefilled, the action always sees 10
+        ->and($payload['received']['count'])->toBe(10)
         ->and($payload['received']['price'])->toBe(12.34)
         ->and($payload['received']['active'])->toBeTrue()
         ->and($payload['received']['tags'])->toEqual(['x', 'y'])
         ->and($payload['received']['status'])->toBe('pending');
+});
+
+it('omits prefilled parameters from the JSON schema', function (): void {
+    $schema = new \Illuminate\JsonSchema\JsonSchemaTypeFactory;
+    $properties = (new EchoAction)->getToolSchema($schema);
+
+    expect(array_keys($properties))
+        ->not->toContain('count')
+        ->toContain('name')
+        ->toContain('status');
 });
 
 it('forwards a model id through the MCP tool adapter', function (): void {

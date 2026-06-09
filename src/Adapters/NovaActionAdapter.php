@@ -24,6 +24,7 @@ use Laravel\Nova\Fields\Select;
 use Laravel\Nova\Fields\Text;
 use Laravel\Nova\Fields\Textarea;
 use Laravel\Nova\Fields\URL;
+use Laravel\Nova\Http\Requests\NovaRequest;
 use Throwable;
 
 /**
@@ -40,6 +41,33 @@ use Throwable;
  */
 trait NovaActionAdapter
 {
+    /**
+     * Current Nova request, populated by the decorator before delegation.
+     */
+    public ?NovaRequest $novaRequest = null;
+
+    /**
+     * Models the action is being run against, populated by the decorator.
+     *
+     * @var Collection<int, mixed>|null
+     */
+    public ?Collection $models = null;
+
+    /**
+     * Inject Nova context onto the action before the adapter executes.
+     *
+     * Populates the shared {@see Opscale\Actions\Action::context()} bag with
+     * the values declared by {@see novaContext()} so {@see prefill()} can
+     * read them.
+     */
+    public function bootNovaContext(?NovaRequest $request = null, ?Collection $models = null): void
+    {
+        $this->novaRequest = $request;
+        $this->models = $models;
+
+        $this->context = $this->novaContext();
+    }
+
     /**
      * Get the action title (human-readable name).
      */
@@ -62,15 +90,23 @@ trait NovaActionAdapter
     public function getActionFields(): array
     {
         $fields = [];
+        $prefill = $this->prefill();
+        $options = $this->options();
 
         foreach ($this->parameters() as $parameter) {
             $name = $parameter['name'];
+
+            // Prefilled parameters are not solicited from the user.
+            if (array_key_exists($name, $prefill)) {
+                continue;
+            }
+
             $description = $parameter['description'] ?? '';
             $type = $parameter['type'] ?? 'string';
             $rules = $parameter['rules'] ?? [];
 
             // Create the appropriate Nova field based on type
-            $field = $this->createNovaField($name, $type, $rules);
+            $field = $this->createNovaField($name, $type, $rules, $options[$name] ?? null);
 
             // Add help text from description
             if ($description) {
@@ -104,7 +140,13 @@ trait NovaActionAdapter
     public function asNovaAction(ActionFields $fields, Collection $models): mixed
     {
         try {
-            $attributes = $fields->toArray();
+            // Defensive: when invoked outside the decorator path, the context
+            // bag may still be empty. Re-populate so prefill() always sees
+            // the latest models alongside whatever the decorator already set.
+            $this->models = $models;
+            $this->context = $this->novaContext();
+
+            $attributes = array_merge($fields->toArray(), $this->prefill());
 
             $this->fill($attributes);
             $validatedData = $this->validateAttributes();
@@ -134,6 +176,21 @@ trait NovaActionAdapter
     }
 
     /**
+     * Declare the context values this adapter publishes into the shared
+     * {@see Opscale\Actions\Action::context()} bag.
+     *
+     * @return array<string, mixed>
+     */
+    protected function novaContext(): array
+    {
+        return array_filter([
+            'request' => $this->novaRequest,
+            'user' => $this->novaRequest?->user(),
+            'models' => $this->models,
+        ]);
+    }
+
+    /**
      * Build a snake_case identifier for the models the action is being run against.
      *
      * Singular form when exactly one model is selected (e.g. `user`, `order_item`);
@@ -156,32 +213,45 @@ trait NovaActionAdapter
     /**
      * Create a Nova field based on the parameter type and rules.
      */
-    protected function createNovaField(string $name, string $type, array $rules): mixed
+    protected function createNovaField(string $name, string $type, array $rules, ?array $options = null): mixed
     {
-        $field = null;
         $label = str_replace('_', ' ', ucfirst($name));
-        $prefill = $this->prefill();
 
-        if ($type === 'array' || class_exists($type)) {
-            if (! empty($prefill[$name])) {
-                $field = Select::make($label, $name)
-                    ->options($prefill[$name])
-                    ->displayUsingLabels();
-            } elseif ($type === 'array') {
-                $field = KeyValue::make($label, $name);
-            } else {
-                $field = Text::make($label, $name);
-            }
+        if (! empty($options)) {
+            $field = Select::make($label, $name)
+                ->options($this->toSelectOptions($options))
+                ->displayUsingLabels();
+        } elseif ($type === 'array' || class_exists($type)) {
+            $field = $type === 'array'
+                ? KeyValue::make($label, $name)
+                : Text::make($label, $name);
         } elseif ($field = $this->fieldFromRule($label, $name, $rules)) {
             $field = $this->fieldFromType($label, $name, $type, $rules);
         } else {
             $field = Text::make($label, $name);
         }
 
-        $field->default($prefill[$name] ?? null);
         $field->rules($rules);
 
         return $field;
+    }
+
+    /**
+     * Normalize an options list into Nova's expected {value: label} shape.
+     *
+     * Accepts either a list (['active', 'inactive']) or a map
+     * (['active' => 'Active']) and always returns a map.
+     */
+    protected function toSelectOptions(array $options): array
+    {
+        if (array_is_list($options)) {
+            return array_combine($options, array_map(
+                fn ($value): string => Str::headline((string) $value),
+                $options
+            ));
+        }
+
+        return $options;
     }
 
     /**

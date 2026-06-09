@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Opscale\Actions\Action;
 use Opscale\Actions\Tests\Fixtures\EchoAction;
 
-it('returns an empty array when no defaults are declared', function (): void {
+it('returns an empty array when no options are declared', function (): void {
     $bare = new class extends Action
     {
         public function identifier(): string
@@ -20,7 +20,7 @@ it('returns an empty array when no defaults are declared', function (): void {
 
         public function description(): string
         {
-            return 'No prefill.';
+            return 'No options.';
         }
 
         public function parameters(): array
@@ -34,29 +34,20 @@ it('returns an empty array when no defaults are declared', function (): void {
         }
     };
 
-    expect($bare->prefill())->toBe([]);
+    expect($bare->options())->toBe([]);
 });
 
-it('exposes scalar defaults keyed by parameter name', function (): void {
-    $prefill = (new EchoAction)->prefill();
+it('exposes choice lists keyed by parameter name', function (): void {
+    $options = (new EchoAction)->options();
 
-    expect($prefill)
-        ->toHaveKey('count')
-        ->and($prefill['count'])->toBeInt()->toBe(10);
+    expect($options)
+        ->toHaveKey('status')
+        ->and($options['status'])->toEqual(['active', 'inactive', 'pending']);
 });
 
-it('does not leak options data into prefill anymore', function (): void {
-    $prefill = (new EchoAction)->prefill();
-
-    // status / tags belong to options() now, not prefill.
-    expect($prefill)
-        ->not->toHaveKey('status')
-        ->not->toHaveKey('tags');
-});
-
-it('only declares prefill entries for parameters that opt into one', function (): void {
+it('only declares options entries for parameters that opt into one', function (): void {
     $action = new EchoAction;
-    $declared = array_keys($action->prefill());
+    $declared = array_keys($action->options());
     $params = collect($action->parameters())->pluck('name')->all();
 
     foreach ($declared as $key) {
