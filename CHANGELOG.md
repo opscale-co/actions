@@ -2,6 +2,24 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## 2.0.0 (2026-06-20)
+
+* feat(action)!: split prefill into context, prefill, options hooks ([741cafd](https://github.com/opscale-co/actions/commit/741cafd))
+* revert(action)!: drop context(), options(), and canRun() hooks ([57cc9c6](https://github.com/opscale-co/actions/commit/57cc9c6))
+* feat(nova): populate context inside getActionFields and expose resource ([8a0942c](https://github.com/opscale-co/actions/commit/8a0942c))
+* chore(deps): drop opscale-co/nova-toolbar-actions ([bbf1869](https://github.com/opscale-co/actions/commit/bbf1869))
+* docs(readme): document canRun authorization gate ([b8f8ad4](https://github.com/opscale-co/actions/commit/b8f8ad4))
+
+
+### BREAKING CHANGE
+
+* prefill() now returns scalar defaults only; choice lists
+move to a new options() method. A new context() reader is populated by
+each adapter (request, user, models, command) and is available before
+fields render in Nova, so prefill() can compute values from runtime state.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+
 ## 1.3.0 (2026-06-09)
 
 * fix(adapter): apply api middleware to controller routes ([7799a93](https://github.com/opscale-co/actions/commit/7799a93))
