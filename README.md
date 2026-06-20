@@ -108,18 +108,10 @@ class ResetPassword extends Action
         ];
     }
 
-    public function canRun(): bool
-    {
-        return auth()->user()?->can('reset-passwords') ?? false;
-    }
 }
 ```
 
-### Authorization
-
-Every action exposes a `canRun(): bool` method that defaults to `true`. Override it to gate execution based on the current user, feature flags, or any custom rule. The Nova decorator wires this into Nova's `canSee`, so unauthorized actions are automatically hidden from the toolbar.
-
-### Context, Prefill & Options
+### Prefill & Options
 
 Two optional hooks let you trim what each adapter solicits from the user and what the action takes as authoritative:
 
@@ -128,45 +120,30 @@ Two optional hooks let you trim what each adapter solicits from the user and wha
 | `prefill()` | Authoritative defaults for parameters. Wins over user input. Hidden in every adapter. | Hidden |
 | `options()` | Choice list per parameter for the values the user IS asked for. Nova renders a Select, Artisan renders a choice prompt, MCP exposes an `enum`. | Visible |
 
-A single `context()` reader exposes whatever the active adapter populated — request, user, models, command, etc. Each adapter knows what to inject for its surface, so `prefill()` reads the same shape regardless of where the action is invoked.
-
 ```php
-class ResetPassword extends Action
+class UpdateStatus extends Action
 {
     public function parameters(): array
     {
         return [
-            ['name' => 'email',    'description' => 'Target email',   'type' => 'string', 'rules' => ['required', 'email']],
-            ['name' => 'role',     'description' => 'Role to assign', 'type' => 'string', 'rules' => ['required', 'string']],
-            ['name' => 'actor_id', 'description' => 'Who triggered',  'type' => 'integer','rules' => ['required', 'integer']],
+            ['name' => 'status', 'description' => 'New status', 'type' => 'string', 'rules' => ['required', 'string']],
+            ['name' => 'note',   'description' => 'Optional reason', 'type' => 'string', 'rules' => ['nullable', 'string', 'max:500']],
         ];
     }
 
     public function prefill(): array
     {
-        // actor_id is never asked — taken from the current request, whichever
-        // adapter is driving the call.
-        return [
-            'actor_id' => $this->context()['user']?->id,
-        ];
+        return ['note' => 'Updated via automated pipeline.'];
     }
 
     public function options(): array
     {
-        // role IS asked, but constrained to these values.
-        return ['role' => ['admin', 'editor', 'viewer']];
-    }
-
-    public function handle(array $attributes = []): array
-    {
-        // $attributes['actor_id'] is always the authenticated user id.
-        // $attributes['role'] is one of admin/editor/viewer.
-        // …
+        return ['status' => ['active', 'inactive', 'pending']];
     }
 }
 ```
 
-Prefilled values always win over user-supplied values (an API client sending `actor_id => 999` will still see `actor_id` set to the authenticated user's id).
+Prefilled values always win over user-supplied values (an API client sending `note => 'override'` will still see the prefilled note in `handle()`).
 
 ### One Action, Multiple Contexts
 

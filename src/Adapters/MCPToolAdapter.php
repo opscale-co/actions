@@ -31,11 +31,6 @@ trait MCPToolAdapter
     public bool $shouldRegisterTool = true;
 
     /**
-     * Current MCP request, populated when running as MCP tool.
-     */
-    public ?Request $mcpRequest = null;
-
-    /**
      * Get the tool name (identifier).
      */
     public function getToolName(): string
@@ -66,7 +61,6 @@ trait MCPToolAdapter
     {
         $properties = [];
         $prefill = $this->prefill();
-        $options = $this->options();
 
         foreach ($this->parameters() as $parameter) {
             $name = $parameter['name'];
@@ -90,11 +84,10 @@ trait MCPToolAdapter
                 $property = $property->description($description);
             }
 
-            // Enum is sourced from options() first, then falls back to `in:` rule
-            $choices = $options[$name] ?? $this->extractChoices($rules);
+            $choices = $this->extractChoices($rules);
 
             if (! empty($choices)) {
-                $property = $property->enum(array_values($choices));
+                $property = $property->enum($choices);
             }
 
             // Mark as required if needed
@@ -114,9 +107,6 @@ trait MCPToolAdapter
     public function asMCPTool(Request $request): Response
     {
         try {
-            $this->mcpRequest = $request;
-            $this->context = $this->mcpContext();
-
             $arguments = array_merge($request->toArray() ?? [], $this->prefill());
 
             $this->fill($arguments);
@@ -139,19 +129,6 @@ trait MCPToolAdapter
         } catch (Throwable $e) {
             return Response::error($e->getMessage());
         }
-    }
-
-    /**
-     * Declare the context values this adapter publishes into the shared
-     * {@see Opscale\Actions\Action::context()} bag.
-     *
-     * @return array<string, mixed>
-     */
-    protected function mcpContext(): array
-    {
-        return array_filter([
-            'request' => $this->mcpRequest,
-        ]);
     }
 
     /**

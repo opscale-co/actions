@@ -99,16 +99,6 @@ final class EchoAction extends Action
     }
 
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public function options(): array
-    {
-        return [
-            'status' => ['active', 'inactive', 'pending'],
-        ];
-    }
-
-    /**
      * @param  array<string, mixed>  $attributes
      * @return array<string, mixed>
      */

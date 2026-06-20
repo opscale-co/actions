@@ -28,23 +28,13 @@ class NovaActionDecorator extends Action
 
         $this->name = $this->fromActionMethodOrProperty('getActionTitle', 'actionTitle', $title);
         $this->uriKey = $this->fromActionMethodOrProperty('getActionUriKey', 'actionUriKey', $uriKey);
-
-        $this->canSee(fn () => (bool) $this->resolveAndCallMethod('canRun', []));
     }
 
     /**
      * Get the fields available on the action.
-     *
-     * Delegates to the action's getActionFields($request) which populates
-     * context internally — so prefill() can read the active request, user,
-     * and selected models before deciding which fields to render.
      */
     public function fields(NovaRequest $request): array
     {
-        if ($this->hasMethod('getActionFields')) {
-            return $this->resolveAndCallMethod('getActionFields', ['request' => $request]);
-        }
-
         return $this->fromActionMethodOrProperty('getActionFields', 'actionFields', []);
     }
 

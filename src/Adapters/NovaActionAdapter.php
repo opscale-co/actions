@@ -24,7 +24,6 @@ use Laravel\Nova\Fields\Select;
 use Laravel\Nova\Fields\Text;
 use Laravel\Nova\Fields\Textarea;
 use Laravel\Nova\Fields\URL;
-use Laravel\Nova\Http\Requests\NovaRequest;
 use Throwable;
 
 /**
@@ -41,36 +40,6 @@ use Throwable;
  */
 trait NovaActionAdapter
 {
-    /**
-     * Current Nova request, populated by the decorator before delegation.
-     */
-    public ?NovaRequest $novaRequest = null;
-
-    /**
-     * Models the action is being run against, populated by the decorator.
-     *
-     * @var Collection<int, mixed>|null
-     */
-    public ?Collection $models = null;
-
-    /**
-     * Inject Nova context onto the action before the adapter executes.
-     *
-     * Populates the shared {@see Opscale\Actions\Action::context()} bag with
-     * the values declared by {@see novaContext()} so {@see prefill()} can
-     * read them. Called automatically by both {@see getActionFields()} (at
-     * field-render time) and {@see asNovaAction()} (at execution time) so
-     * context is ready in either phase, regardless of how the action is
-     * invoked (through the decorator or directly).
-     */
-    public function bootNovaContext(?NovaRequest $request = null, ?Collection $models = null): void
-    {
-        $this->novaRequest = $request;
-        $this->models = $models;
-
-        $this->context = $this->novaContext();
-    }
-
     /**
      * Get the action title (human-readable name).
      */
@@ -89,19 +58,11 @@ trait NovaActionAdapter
 
     /**
      * Get the action fields built from parameters().
-     *
-     * Populates the execution context first so {@see prefill()} can compute
-     * values from the active request, user, and selected models — context
-     * MUST be available before fields are decided, not just at handle time.
      */
-    public function getActionFields(?NovaRequest $request = null): array
+    public function getActionFields(): array
     {
-        $request = $request ?? app(NovaRequest::class);
-        $this->bootNovaContext($request, $this->resolveSelectedModels($request));
-
         $fields = [];
         $prefill = $this->prefill();
-        $options = $this->options();
 
         foreach ($this->parameters() as $parameter) {
             $name = $parameter['name'];
@@ -116,7 +77,7 @@ trait NovaActionAdapter
             $rules = $parameter['rules'] ?? [];
 
             // Create the appropriate Nova field based on type
-            $field = $this->createNovaField($name, $type, $rules, $options[$name] ?? null);
+            $field = $this->createNovaField($name, $type, $rules);
 
             // Add help text from description
             if ($description) {
@@ -150,11 +111,6 @@ trait NovaActionAdapter
     public function asNovaAction(ActionFields $fields, Collection $models): mixed
     {
         try {
-            $this->bootNovaContext(
-                $this->novaRequest ?? app(NovaRequest::class),
-                $models,
-            );
-
             $attributes = array_merge($fields->toArray(), $this->prefill());
 
             $this->fill($attributes);
@@ -185,67 +141,6 @@ trait NovaActionAdapter
     }
 
     /**
-     * Declare the context values this adapter publishes into the shared
-     * {@see Opscale\Actions\Action::context()} bag.
-     *
-     * @return array<string, mixed>
-     */
-    protected function novaContext(): array
-    {
-        return array_filter([
-            'request' => $this->novaRequest,
-            'user' => $this->novaRequest?->user(),
-            'resource' => $this->resolveResourceClass($this->novaRequest),
-            'models' => $this->models,
-        ]);
-    }
-
-    /**
-     * Resolve the Nova Resource class the action is being invoked from.
-     *
-     * Returns the resource class-string (e.g. `App\Nova\User`) or null when
-     * the request has no resource binding — for instance during standalone
-     * actions or when the lookup aborts because the resource key is missing.
-     */
-    protected function resolveResourceClass(?NovaRequest $request): ?string
-    {
-        if ($request === null || ! method_exists($request, 'resource')) {
-            return null;
-        }
-
-        try {
-            return $request->resource();
-        } catch (Throwable) {
-            return null;
-        }
-    }
-
-    /**
-     * Resolve the models the user selected on the resource index/detail page
-     * so they are available to {@see prefill()} during field rendering.
-     */
-    protected function resolveSelectedModels(?NovaRequest $request): ?Collection
-    {
-        if ($request === null || ! method_exists($request, 'selectedResources')) {
-            return null;
-        }
-
-        try {
-            $models = $request->selectedResources();
-        } catch (Throwable) {
-            return null;
-        }
-
-        if ($models === null) {
-            return null;
-        }
-
-        $collection = $models instanceof Collection ? $models : collect($models);
-
-        return $collection->isEmpty() ? null : $collection;
-    }
-
-    /**
      * Build a snake_case identifier for the models the action is being run against.
      *
      * Singular form when exactly one model is selected (e.g. `user`, `order_item`);
@@ -268,45 +163,32 @@ trait NovaActionAdapter
     /**
      * Create a Nova field based on the parameter type and rules.
      */
-    protected function createNovaField(string $name, string $type, array $rules, ?array $options = null): mixed
+    protected function createNovaField(string $name, string $type, array $rules): mixed
     {
+        $field = null;
         $label = str_replace('_', ' ', ucfirst($name));
+        $prefill = $this->prefill();
 
-        if (! empty($options)) {
-            $field = Select::make($label, $name)
-                ->options($this->toSelectOptions($options))
-                ->displayUsingLabels();
-        } elseif ($type === 'array' || class_exists($type)) {
-            $field = $type === 'array'
-                ? KeyValue::make($label, $name)
-                : Text::make($label, $name);
+        if ($type === 'array' || class_exists($type)) {
+            if (! empty($prefill[$name])) {
+                $field = Select::make($label, $name)
+                    ->options($prefill[$name])
+                    ->displayUsingLabels();
+            } elseif ($type === 'array') {
+                $field = KeyValue::make($label, $name);
+            } else {
+                $field = Text::make($label, $name);
+            }
         } elseif ($field = $this->fieldFromRule($label, $name, $rules)) {
             $field = $this->fieldFromType($label, $name, $type, $rules);
         } else {
             $field = Text::make($label, $name);
         }
 
+        $field->default($prefill[$name] ?? null);
         $field->rules($rules);
 
         return $field;
-    }
-
-    /**
-     * Normalize an options list into Nova's expected {value: label} shape.
-     *
-     * Accepts either a list (['active', 'inactive']) or a map
-     * (['active' => 'Active']) and always returns a map.
-     */
-    protected function toSelectOptions(array $options): array
-    {
-        if (array_is_list($options)) {
-            return array_combine($options, array_map(
-                fn ($value): string => Str::headline((string) $value),
-                $options
-            ));
-        }
-
-        return $options;
     }
 
     /**

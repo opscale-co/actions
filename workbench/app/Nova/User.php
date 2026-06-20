@@ -113,7 +113,7 @@ class User extends Resource
     final public function actions(NovaRequest $request): array
     {
         return [
-            ResetPassword::make()->showAsButton(),
+            ResetPassword::make(),
         ];
     }
 }

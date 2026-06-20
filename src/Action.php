@@ -92,15 +92,6 @@ abstract class Action
     use WithAttributes;
 
     /**
-     * Execution-time context populated by whichever adapter is driving the
-     * call. The shape depends on the active adapter — see each adapter trait
-     * for what it injects (request, user, models, command, etc.).
-     *
-     * @var array<string, mixed>
-     */
-    protected array $context = [];
-
-    /**
      * Get a unique slug identifier for this action.
      *
      * This identifier is used across different contexts to uniquely identify
@@ -233,74 +224,11 @@ abstract class Action
      * that key. Prefill values win over user input — they are the source of
      * truth for those parameters.
      *
-     * Read execution-time data via {@see context()}. Each adapter populates
-     * the context with whatever is relevant to its surface (current request,
-     * user, models, command) before invoking the action, so `prefill()` can
-     * derive values from it regardless of which adapter is driving the call.
-     *
-     * Example:
-     *
-     * ```php
-     * public function prefill(): array
-     * {
-     *     return [
-     *         'requested_by_id' => $this->context()['user']?->id,
-     *     ];
-     * }
-     * ```
-     *
      * @return array<string, mixed>
      */
     public function prefill(): array
     {
         return [];
-    }
-
-    /**
-     * Get the execution-time context populated by the active adapter.
-     *
-     * @return array<string, mixed>
-     */
-    public function context(): array
-    {
-        return $this->context;
-    }
-
-    /**
-     * Provide enumerated choices for parameters that DO require user input.
-     *
-     * Each adapter translates this to its native selector: a Select field in
-     * Nova, a choice() prompt in Artisan, and an `enum` constraint in the MCP
-     * JSON schema. Controller-driven calls still rely on the parameter's `in:`
-     * validation rule.
-     *
-     * Parameters listed in {@see prefill()} take precedence — if a key is in
-     * both, the prefill default wins and the options are never shown.
-     *
-     * Example:
-     *
-     * ```php
-     * public function options(): array
-     * {
-     *     return [
-     *         'status' => ['active', 'inactive', 'pending'],
-     *     ];
-     * }
-     * ```
-     *
-     * @return array<string, array<int, mixed>>
-     */
-    public function options(): array
-    {
-        return [];
-    }
-
-    /**
-     * Determine whether the current user is authorized to run this action.
-     */
-    public function canRun(): bool
-    {
-        return true;
     }
 
     /**

@@ -20,11 +20,6 @@ use Throwable;
 trait ControllerAdapter
 {
     /**
-     * Current HTTP request, populated when running as controller.
-     */
-    public ?Request $request = null;
-
-    /**
      * Get the middleware for the controller.
      *
      * @return array<string>
@@ -43,9 +38,6 @@ trait ControllerAdapter
     public function asController(Request $request): JsonResponse
     {
         try {
-            $this->request = $request;
-            $this->context = $this->controllerContext();
-
             $this->fill(array_merge($request->all(), $this->prefill()));
             $validatedData = $this->validateAttributes();
 
@@ -66,19 +58,5 @@ trait ControllerAdapter
                 'error' => $e->getMessage(),
             ], 500);
         }
-    }
-
-    /**
-     * Declare the context values this adapter publishes into the shared
-     * {@see Opscale\Actions\Action::context()} bag.
-     *
-     * @return array<string, mixed>
-     */
-    protected function controllerContext(): array
-    {
-        return array_filter([
-            'request' => $this->request,
-            'user' => $this->request?->user(),
-        ]);
     }
 }
