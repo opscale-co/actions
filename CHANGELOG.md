@@ -2,6 +2,10 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## <small>2.0.2 (2026-06-30)</small>
+
+* fix(nova): assign models after validation to avoid validating model instances ([37e8c65](https://github.com/opscale-co/actions/commit/37e8c65))
+
 ## <small>2.0.1 (2026-06-30)</small>
 
 * fix(nova): include resource models in validated attributes ([892effd](https://github.com/opscale-co/actions/commit/892effd))
