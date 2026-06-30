@@ -112,12 +112,11 @@ trait NovaActionAdapter
     {
         try {
             $attributes = array_merge($fields->toArray(), $this->prefill());
+            $label = $this->resolveParameterLabel($models);
+            $attributes[$label] = $models;
 
             $this->fill($attributes);
             $validatedData = $this->validateAttributes();
-
-            $label = $this->resolveParameterLabel($models);
-            $validatedData[$label] = $models;
 
             $result = $this->handle($validatedData);
 
