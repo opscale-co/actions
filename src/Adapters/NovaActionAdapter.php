@@ -24,6 +24,7 @@ use Laravel\Nova\Fields\Select;
 use Laravel\Nova\Fields\Text;
 use Laravel\Nova\Fields\Textarea;
 use Laravel\Nova\Fields\URL;
+use Opscale\Actions\Decorators\NovaActionDecorator;
 use Throwable;
 
 /**
@@ -36,7 +37,7 @@ use Throwable;
  * - identifier() → getActionUriKey()
  * - parameters() → getActionFields()
  *
- * @see \Opscale\Actions\Decorators\NovaActionDecorator
+ * @see NovaActionDecorator
  */
 trait NovaActionAdapter
 {
@@ -112,11 +113,11 @@ trait NovaActionAdapter
     {
         try {
             $attributes = array_merge($fields->toArray(), $this->prefill());
-            $label = $this->resolveParameterLabel($models);
-            $attributes[$label] = $models;
-
             $this->fill($attributes);
             $validatedData = $this->validateAttributes();
+
+            $label = $this->resolveParameterLabel($models);
+            $validatedData[$label] = $models;
 
             $result = $this->handle($validatedData);
 
