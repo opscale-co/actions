@@ -2,6 +2,10 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## <small>2.0.1 (2026-06-30)</small>
+
+* fix(nova): include resource models in validated attributes ([892effd](https://github.com/opscale-co/actions/commit/892effd))
+
 ## 2.0.0 (2026-06-20)
 
 * feat(action)!: split prefill into context, prefill, options hooks ([741cafd](https://github.com/opscale-co/actions/commit/741cafd))
