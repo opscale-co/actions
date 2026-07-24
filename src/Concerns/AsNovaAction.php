@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Opscale\Actions\Concerns;
 
 use Laravel\Nova\Actions\ActionResponse;
+use Opscale\Actions\Decorators\NovaActionDecorator;
+use Opscale\Actions\DesignPatterns\NovaActionDesignPattern;
 
 /**
  * Trait AsNovaAction
@@ -15,8 +17,8 @@ use Laravel\Nova\Actions\ActionResponse;
  *
  * This trait should be used alongside AsAction from laravel-actions.
  *
- * @see \Opscale\Actions\Decorators\NovaActionDecorator
- * @see \Opscale\Actions\DesignPatterns\NovaActionDesignPattern
+ * @see NovaActionDecorator
+ * @see NovaActionDesignPattern
  */
 trait AsNovaAction
 {

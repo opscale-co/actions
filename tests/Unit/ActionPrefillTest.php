@@ -28,6 +28,11 @@ it('returns an empty array when no defaults are declared', function (): void {
             return [];
         }
 
+        public function outputs(): array
+        {
+            return [];
+        }
+
         public function handle(array $attributes = []): array
         {
             return [];

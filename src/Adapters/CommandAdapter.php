@@ -7,20 +7,24 @@ namespace Opscale\Actions\Adapters;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Lorisleiva\Actions\Concerns\AsCommand;
 use Throwable;
 
 /**
  * Trait CommandAdapter
  *
- * Adapts the Action contract to Lorisleiva\Actions\Concerns\AsCommand.
- * This trait maps the Action's abstract methods to the command properties:
+ * Adapts the Action contract to Lorisleiva\Actions\Concerns\AsCommand via
+ * the SIPOC pipeline.
  *
- * - identifier() → getCommandSignature()
- * - name() → getCommandName()
- * - description() → getCommandDescription()
- * - parameters() → interactive prompts via asCommand()
+ * - identifier() → command signature root
+ * - name()       → getCommandName()
+ * - description()→ getCommandDescription()
+ * - parameters() → CLI arguments + interactive prompts
+ * - options()    → renders `choice()` prompts instead of plain text
+ * - prefill()    → resolved silently (never prompted; closures receive the
+ *                  Command instance as context)
  *
- * @see \Lorisleiva\Actions\Concerns\AsCommand
+ * @see AsCommand
  */
 trait CommandAdapter
 {
@@ -35,18 +39,14 @@ trait CommandAdapter
     public ?string $commandHelp = null;
 
     /**
-     * Get the command signature.
-     *
-     * Uses identifier() as the command name and appends optional arguments
-     * for each parameter defined in parameters().
+     * Build the command signature: identifier followed by an optional
+     * argument for every user-supplied parameter.
      */
     public function getCommandSignature(): string
     {
         $signature = $this->identifier();
         $prefill = $this->prefill();
 
-        // Append optional arguments for each parameter. Prefilled parameters
-        // are not exposed as CLI arguments since they are authoritative.
         foreach ($this->parameters() as $parameter) {
             $name = $parameter['name'];
 
@@ -60,32 +60,22 @@ trait CommandAdapter
         return $signature;
     }
 
-    /**
-     * Get the command name (displayed in help).
-     */
     public function getCommandName(): string
     {
         return $this->name();
     }
 
-    /**
-     * Get the command description.
-     */
     public function getCommandDescription(): string
     {
         return $this->description();
     }
 
-    /**
-     * Get additional help text for the command.
-     */
     public function getCommandHelp(): string
     {
         if ($this->commandHelp !== null) {
             return $this->commandHelp;
         }
 
-        // Build help text from parameters
         $parameters = $this->parameters();
         if (! empty($parameters)) {
             $help = "Parameters:\n";
@@ -95,7 +85,7 @@ trait CommandAdapter
                     "  %s: %s %s\n",
                     $param['name'],
                     $param['description'] ?? '',
-                    $required
+                    $required,
                 );
             }
 
@@ -105,9 +95,6 @@ trait CommandAdapter
         return '';
     }
 
-    /**
-     * Determine if the command should be hidden.
-     */
     public function isCommandHidden(): bool
     {
         return $this->commandHidden;
@@ -115,21 +102,23 @@ trait CommandAdapter
 
     /**
      * Execute the action as an Artisan command.
-     *
-     * Collects missing arguments interactively, executes the action,
-     * and handles exceptions gracefully.
      */
     public function asCommand(Command $command): int
     {
         try {
-            $parameters = array_merge($this->collectArguments($command), $this->prefill());
+            $result = $this->execute(
+                $this->collectArguments($command),
+                $command,
+            );
 
-            $this->fill($parameters);
-            $validatedData = $this->validateAttributes();
+            if ($result->isFail()) {
+                $command->error($result->message() ?? 'This action cannot be executed.');
 
-            $result = $this->handle($validatedData);
+                return Command::FAILURE;
+            }
 
-            $command->info('Done.');
+            $message = $result->data()['message'] ?? 'Done.';
+            $command->info($message);
 
             return Command::SUCCESS;
         } catch (ValidationException $e) {
@@ -148,31 +137,29 @@ trait CommandAdapter
     }
 
     /**
-     * Collect parameters from command arguments or interactively.
+     * Collect user-supplied parameters from CLI args or interactively.
      *
      * @return array<string, mixed>
      */
     protected function collectArguments(Command $command): array
     {
         $prefill = $this->prefill();
+        $options = $this->options();
         $collected = [];
 
         foreach ($this->parameters() as $parameter) {
             $name = $parameter['name'];
 
-            // Prefilled parameters are not solicited from the user.
             if (array_key_exists($name, $prefill)) {
                 continue;
             }
 
             $value = $command->hasArgument($name) ? $command->argument($name) : null;
 
-            // If no value provided as argument, prompt interactively
             if ($value === null) {
-                $value = $this->promptForArgument($command, $parameter);
+                $value = $this->promptForArgument($command, $parameter, $options);
             }
 
-            // Cast the value to the appropriate type
             $collected[$name] = $this->castParameterValue($value, $parameter);
         }
 
@@ -181,31 +168,24 @@ trait CommandAdapter
 
     /**
      * Prompt the user for a parameter value.
+     *
+     * @param  array<string, array<int|string, string>>  $options
      */
-    protected function promptForArgument(Command $command, array $parameter): mixed
+    protected function promptForArgument(Command $command, array $parameter, array $options = []): mixed
     {
         $name = $parameter['name'];
         $description = $parameter['description'] ?? Str::headline($name);
         $type = $parameter['type'] ?? 'string';
-        $rules = $parameter['rules'] ?? [];
         $isRequired = $this->isParameterRequired($parameter);
 
-        // Handle boolean type
+        if (array_key_exists($name, $options) && ! empty($options[$name])) {
+            return $this->promptChoice($command, $description, $options[$name], $isRequired);
+        }
+
         if ($type === 'boolean' || $type === 'bool') {
             return $command->confirm($description, $parameter['default'] ?? false);
         }
 
-        // Handle class type: use prefill options as choices
-        if ($type === 'array' || class_exists($type)) {
-            $prefill = $this->prefill();
-            $options = $prefill[$name] ?? [];
-
-            if (! empty($options)) {
-                return $this->promptChoice($command, $description, $options, $isRequired);
-            }
-        }
-
-        // Default: ask for text input
         return $this->promptText($command, $name, $description, $isRequired, $parameter['default'] ?? null);
     }
 
@@ -232,6 +212,8 @@ trait CommandAdapter
 
     /**
      * Prompt for a choice value.
+     *
+     * @param  array<int|string, string>  $choices
      */
     protected function promptChoice(Command $command, string $description, array $choices, bool $required): mixed
     {
@@ -239,16 +221,12 @@ trait CommandAdapter
             return $command->choice($description, $choices);
         }
 
-        // Add an empty option for optional fields
         $choicesWithEmpty = array_merge(['(none)'], $choices);
         $value = $command->choice($description, $choicesWithEmpty);
 
         return $value === '(none)' ? null : $value;
     }
 
-    /**
-     * Determine if a parameter is required based on its rules.
-     */
     protected function isParameterRequired(array $parameter): bool
     {
         $rules = $parameter['rules'] ?? [];
@@ -256,9 +234,6 @@ trait CommandAdapter
         return in_array('required', $rules, true);
     }
 
-    /**
-     * Cast parameter value to the appropriate type.
-     */
     protected function castParameterValue(mixed $value, array $parameter): mixed
     {
         if ($value === null) {

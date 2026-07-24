@@ -7,15 +7,17 @@ namespace Opscale\Actions\Adapters;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Lorisleiva\Actions\Concerns\AsController;
 use Throwable;
 
 /**
  * Trait ControllerAdapter
  *
- * Adapts the Action contract to Lorisleiva\Actions\Concerns\AsController.
- * This trait provides controller-specific functionality for actions.
+ * Adapts the Action contract to Lorisleiva\Actions\Concerns\AsController via
+ * the SIPOC pipeline. Prefill closures receive the current `Request` as
+ * their context so they can pull from headers, session, auth, etc.
  *
- * @see \Lorisleiva\Actions\Concerns\AsController
+ * @see AsController
  */
 trait ControllerAdapter
 {
@@ -31,21 +33,23 @@ trait ControllerAdapter
 
     /**
      * Execute the action as a controller.
-     *
-     * Fills attributes from the request, validates them,
-     * and handles exceptions gracefully.
      */
     public function asController(Request $request): JsonResponse
     {
         try {
-            $this->fill(array_merge($request->all(), $this->prefill()));
-            $validatedData = $this->validateAttributes();
+            $result = $this->execute($request->all(), $request);
 
-            $result = $this->handle($validatedData);
+            if ($result->isFail()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result->message(),
+                    'data' => $result->data(),
+                ], 422);
+            }
 
             return response()->json([
                 'success' => true,
-                'data' => $result,
+                'data' => $result->data(),
             ]);
         } catch (ValidationException $e) {
             return response()->json([

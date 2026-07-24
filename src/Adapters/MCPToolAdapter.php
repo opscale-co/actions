@@ -8,20 +8,22 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Validation\ValidationException;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Opscale\Actions\Decorators\MCPToolDecorator;
 use Throwable;
 
 /**
  * Trait MCPToolAdapter
  *
- * Adapts the Action contract to MCP Tool.
- * This trait maps the Action's abstract methods to the tool properties:
+ * Adapts the Action contract to an MCP Tool via the SIPOC pipeline.
  *
- * - identifier() → getToolName()
- * - name() → getToolTitle()
- * - description() → getToolDescription()
- * - parameters() → getToolSchema()
+ * - identifier() → tool name
+ * - name()       → tool title
+ * - description()→ tool description
+ * - parameters() → inputSchema (skipping prefill()'d entries; enum lists
+ *                  emitted from options())
+ * - outputs()    → outputSchema
  *
- * @see \Opscale\Actions\Decorators\MCPToolDecorator
+ * @see MCPToolDecorator
  */
 trait MCPToolAdapter
 {
@@ -30,43 +32,34 @@ trait MCPToolAdapter
      */
     public bool $shouldRegisterTool = true;
 
-    /**
-     * Get the tool name (identifier).
-     */
     public function getToolName(): string
     {
         return $this->identifier();
     }
 
-    /**
-     * Get the tool title (human-readable name).
-     */
     public function getToolTitle(): string
     {
         return $this->name();
     }
 
-    /**
-     * Get the tool description.
-     */
     public function getToolDescription(): string
     {
         return $this->description();
     }
 
     /**
-     * Get the tool schema built from parameters().
+     * Build the tool input schema from parameters(), skipping prefill()'d
+     * entries and rendering `enum` lists from options().
      */
     public function getToolSchema(JsonSchema $schema): array
     {
         $properties = [];
         $prefill = $this->prefill();
+        $options = $this->options();
 
         foreach ($this->parameters() as $parameter) {
             $name = $parameter['name'];
 
-            // Prefilled parameters are not exposed in the schema — the action
-            // provides them authoritatively.
             if (array_key_exists($name, $prefill)) {
                 continue;
             }
@@ -76,21 +69,17 @@ trait MCPToolAdapter
             $rules = $parameter['rules'] ?? [];
             $isRequired = $this->isParameterRequiredForSchema($parameter);
 
-            // Create the schema property based on type
             $property = $this->createSchemaProperty($schema, $type);
 
-            // Add description
             if ($description) {
                 $property = $property->description($description);
             }
 
-            $choices = $this->extractChoices($rules);
-
-            if (! empty($choices)) {
+            $choices = $this->resolveChoices($name, $options, $rules);
+            if ($choices !== []) {
                 $property = $property->enum($choices);
             }
 
-            // Mark as required if needed
             if ($isRequired) {
                 $property = $property->required();
             }
@@ -102,23 +91,46 @@ trait MCPToolAdapter
     }
 
     /**
-     * Execute the action as an MCP tool.
+     * Build the tool output schema from outputs().
+     */
+    public function getToolOutputSchema(JsonSchema $schema): array
+    {
+        $properties = [];
+
+        foreach ($this->outputs() as $output) {
+            $type = $output['type'] ?? 'string';
+            $description = $output['description'] ?? '';
+            $rules = $output['rules'] ?? [];
+
+            $property = $this->createSchemaProperty($schema, $type);
+
+            if ($description) {
+                $property = $property->description($description);
+            }
+
+            if (in_array('required', $rules, true)) {
+                $property = $property->required();
+            }
+
+            $properties[$output['name']] = $property;
+        }
+
+        return $properties;
+    }
+
+    /**
+     * Execute the action as an MCP tool via the SIPOC pipeline.
      */
     public function asMCPTool(Request $request): Response
     {
         try {
-            $arguments = array_merge($request->toArray() ?? [], $this->prefill());
+            $result = $this->execute($request->toArray() ?? [], $request);
 
-            $this->fill($arguments);
-            $validatedData = $this->validateAttributes();
-
-            $result = $this->handle($validatedData);
-
-            if (empty($result)) {
-                return Response::error('Something went wrong while executing the tool.');
+            if ($result->isFail()) {
+                return Response::error($result->message() ?? 'This action cannot be executed.');
             }
 
-            return Response::text(json_encode($result, JSON_PRETTY_PRINT));
+            return Response::text(json_encode($result->data(), JSON_PRETTY_PRINT));
         } catch (ValidationException $e) {
             $errors = [];
             foreach ($e->errors() as $field => $messages) {
@@ -151,10 +163,24 @@ trait MCPToolAdapter
     }
 
     /**
-     * Extract choices from validation rules for schema.
+     * Determine the enum values for a schema property.
+     *
+     * Prefers `options()` (explicit, per-parameter). Falls back to an `in:`
+     * validation rule if no options are declared for the parameter — kept
+     * for backwards convenience.
+     *
+     * @param  array<string, array<int|string, string>>  $options
+     * @param  array<int, mixed>  $rules
+     * @return array<int, string>
      */
-    protected function extractChoices(array $rules): array
+    protected function resolveChoices(string $name, array $options, array $rules): array
     {
+        if (array_key_exists($name, $options) && ! empty($options[$name])) {
+            $choices = $options[$name];
+
+            return array_is_list($choices) ? $choices : array_keys($choices);
+        }
+
         foreach ($rules as $rule) {
             if (is_string($rule) && str_starts_with($rule, 'in:')) {
                 return explode(',', substr($rule, 3));
@@ -164,9 +190,6 @@ trait MCPToolAdapter
         return [];
     }
 
-    /**
-     * Determine if a parameter is required for schema.
-     */
     protected function isParameterRequiredForSchema(array $parameter): bool
     {
         $rules = $parameter['rules'] ?? [];

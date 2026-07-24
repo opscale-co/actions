@@ -47,6 +47,21 @@ final class SpyAction extends Action
     }
 
     /**
+     * @return array<int, array{name: string, description: string, type: string, rules: array<int, mixed>}>
+     */
+    public function outputs(): array
+    {
+        return [
+            [
+                'name' => 'message',
+                'description' => 'Confirmation string.',
+                'type' => 'string',
+                'rules' => ['required', 'string'],
+            ],
+        ];
+    }
+
+    /**
      * @param  array<string, mixed>  $attributes
      * @return array<string, mixed>
      */

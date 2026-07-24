@@ -49,6 +49,16 @@ class MCPToolDecorator extends Tool
     }
 
     /**
+     * Define the output schema for the tool (built from outputs()).
+     *
+     * @return array<string, mixed>
+     */
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return $this->fromActionMethodOrProperty('getToolOutputSchema', 'toolOutputSchema', [], [$schema]);
+    }
+
+    /**
      * Determine if the tool should be registered.
      */
     public function shouldRegister(Request $request): bool

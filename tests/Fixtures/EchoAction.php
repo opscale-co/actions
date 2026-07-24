@@ -99,6 +99,37 @@ final class EchoAction extends Action
     }
 
     /**
+     * @return array<string, array<int|string, string>>
+     */
+    public function options(): array
+    {
+        return [
+            'status' => ['active', 'inactive', 'pending'],
+        ];
+    }
+
+    /**
+     * @return array<int, array{name: string, description: string, type: string, rules: array<int, mixed>}>
+     */
+    public function outputs(): array
+    {
+        return [
+            [
+                'name' => 'received',
+                'description' => 'Echoed inputs.',
+                'type' => 'array',
+                'rules' => ['required', 'array'],
+            ],
+            [
+                'name' => 'types',
+                'description' => 'Debug types per input key.',
+                'type' => 'array',
+                'rules' => ['required', 'array'],
+            ],
+        ];
+    }
+
+    /**
      * @param  array<string, mixed>  $attributes
      * @return array<string, mixed>
      */

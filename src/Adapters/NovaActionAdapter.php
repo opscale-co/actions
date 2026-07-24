@@ -31,44 +31,48 @@ use Throwable;
  * Trait NovaActionAdapter
  *
  * Adapts the Action contract to Nova Action.
- * This trait maps the Action's abstract methods to the Nova action properties:
  *
- * - name() → getActionTitle()
+ * - name()       → getActionTitle()
  * - identifier() → getActionUriKey()
- * - parameters() → getActionFields()
+ * - parameters() → getActionFields() (skipping prefill()'d ones; using
+ *                                     options() for choice lists)
+ * - outputs()    → validated after handle(); user-facing summary shown via
+ *                  NovaAction::message()
+ *
+ * Prefill closures receive an anonymous context object exposing `->fields`
+ * (the submitted ActionFields) and `->models` (the selected model
+ * Collection). The pipeline injects the models Collection into `handle()`'s
+ * inputs under a snake_case key (`user`, `users`, `order_items`, ...) as a
+ * Nova convenience.
  *
  * @see NovaActionDecorator
  */
 trait NovaActionAdapter
 {
-    /**
-     * Get the action title (human-readable name).
-     */
     public function getActionTitle(): string
     {
         return $this->name();
     }
 
-    /**
-     * Get the action URI key (identifier).
-     */
     public function getActionUriKey(): string
     {
         return $this->identifier();
     }
 
     /**
-     * Get the action fields built from parameters().
+     * Build the action form fields from `parameters()`, skipping any that
+     * are supplied by the system (present in `prefill()`), and rendering
+     * choice inputs via `options()`.
      */
     public function getActionFields(): array
     {
         $fields = [];
         $prefill = $this->prefill();
+        $options = $this->options();
 
         foreach ($this->parameters() as $parameter) {
             $name = $parameter['name'];
 
-            // Prefilled parameters are not solicited from the user.
             if (array_key_exists($name, $prefill)) {
                 continue;
             }
@@ -77,25 +81,20 @@ trait NovaActionAdapter
             $type = $parameter['type'] ?? 'string';
             $rules = $parameter['rules'] ?? [];
 
-            // Create the appropriate Nova field based on type
-            $field = $this->createNovaField($name, $type, $rules);
+            $field = $this->createNovaField($name, $type, $rules, $options);
 
-            // Add help text from description
             if ($description) {
                 $field = $field->help($description);
             }
 
-            // Apply validation rules
             if (! empty($rules)) {
                 $field = $field->rules($rules);
             }
 
-            // Mark as required if applicable
             if (in_array('required', $rules, true)) {
                 $field = $field->required();
             }
 
-            // Mark as nullable if applicable
             if (in_array('nullable', $rules, true)) {
                 $field = $field->nullable();
             }
@@ -107,25 +106,22 @@ trait NovaActionAdapter
     }
 
     /**
-     * Execute the action as a Nova action.
+     * Execute the action as a Nova action via the SIPOC pipeline.
      */
     public function asNovaAction(ActionFields $fields, Collection $models): mixed
     {
         try {
-            $attributes = array_merge($fields->toArray(), $this->prefill());
-            $this->fill($attributes);
-            $validatedData = $this->validateAttributes();
+            $context = $this->makeNovaContext($fields, $models);
+            $extras = $this->novaModelExtras($models);
 
-            $label = $this->resolveParameterLabel($models);
-            $validatedData[$label] = $models;
+            $result = $this->execute($fields->toArray(), $context, $extras);
 
-            $result = $this->handle($validatedData);
-
-            if (empty($result)) {
-                return Action::danger('Something went wrong while executing the action.');
+            if ($result->isFail()) {
+                return Action::danger($result->message() ?? 'This action cannot be executed.');
             }
 
-            $message = $result['message'] ?? 'Action completed successfully.';
+            $data = $result->data();
+            $message = $data['message'] ?? 'Action completed successfully.';
 
             return Action::message($message);
         } catch (ValidationException $e) {
@@ -141,11 +137,37 @@ trait NovaActionAdapter
     }
 
     /**
-     * Build a snake_case identifier for the models the action is being run against.
+     * Build the context object passed to `prefill()` closures.
+     */
+    protected function makeNovaContext(ActionFields $fields, Collection $models): object
+    {
+        return new class($fields, $models)
+        {
+            public function __construct(
+                public ActionFields $fields,
+                public Collection $models,
+            ) {}
+        };
+    }
+
+    /**
+     * Nova convenience: inject the selected models Collection into the
+     * validated inputs under a singular or plural snake_case key so
+     * `handle()` can access them without declaring them in `parameters()`.
      *
-     * Singular form when exactly one model is selected (e.g. `user`, `order_item`);
-     * plural otherwise (e.g. `users`, `order_items`). Returns an empty string when
-     * the action is run with no targeted models (standalone actions).
+     * @return array<string, mixed>
+     */
+    protected function novaModelExtras(Collection $models): array
+    {
+        $label = $this->resolveParameterLabel($models);
+
+        return [$label => $models];
+    }
+
+    /**
+     * Build a snake_case identifier for the models the action is being run
+     * against. Singular for exactly one model, plural otherwise. Empty
+     * string when the collection is empty (standalone actions).
      */
     protected function resolveParameterLabel(Collection $models): string
     {
@@ -161,31 +183,28 @@ trait NovaActionAdapter
     }
 
     /**
-     * Create a Nova field based on the parameter type and rules.
+     * Create a Nova field for a user-supplied parameter.
+     *
+     * @param  array<string, array<int|string, string>>  $options
      */
-    protected function createNovaField(string $name, string $type, array $rules): mixed
+    protected function createNovaField(string $name, string $type, array $rules, array $options = []): mixed
     {
-        $field = null;
         $label = str_replace('_', ' ', ucfirst($name));
-        $prefill = $this->prefill();
 
-        if ($type === 'array' || class_exists($type)) {
-            if (! empty($prefill[$name])) {
-                $field = Select::make($label, $name)
-                    ->options($prefill[$name])
-                    ->displayUsingLabels();
-            } elseif ($type === 'array') {
-                $field = KeyValue::make($label, $name);
-            } else {
-                $field = Text::make($label, $name);
-            }
-        } elseif ($field = $this->fieldFromRule($label, $name, $rules)) {
+        if (array_key_exists($name, $options) && ! empty($options[$name])) {
+            $field = Select::make($label, $name)
+                ->options($options[$name])
+                ->displayUsingLabels();
+        } elseif ($type === 'array' || (class_exists($type) && $type !== '')) {
+            $field = $type === 'array'
+                ? KeyValue::make($label, $name)
+                : Text::make($label, $name);
+        } elseif ($this->fieldFromRule($label, $name, $rules)) {
             $field = $this->fieldFromType($label, $name, $type, $rules);
         } else {
             $field = Text::make($label, $name);
         }
 
-        $field->default($prefill[$name] ?? null);
         $field->rules($rules);
 
         return $field;
@@ -221,8 +240,6 @@ trait NovaActionAdapter
 
     /**
      * Create a Nova field based on validation rules.
-     *
-     * @return mixed|null
      */
     protected function fieldFromRule(string $label, string $name, array $rules): mixed
     {
@@ -234,34 +251,20 @@ trait NovaActionAdapter
             }
 
             $field = match ($ruleName) {
-                // File-related rules
                 'file', 'mimes', 'mimetypes' => File::make($label, $name),
                 'image', 'dimensions' => Image::make($label, $name),
-
-                // Date/time rules
                 'date', 'date_format', 'before', 'after', 'before_or_equal', 'after_or_equal' => Date::make($label, $name),
-
-                // String format rules
                 'email' => Email::make($label, $name),
                 'url', 'active_url' => URL::make($label, $name),
                 'ip', 'ipv4', 'ipv6' => Text::make($label, $name),
                 'mac_address' => Text::make($label, $name),
                 'uuid', 'ulid' => Text::make($label, $name),
-
-                // Password rules
                 'password', 'current_password' => Password::make($label, $name),
-
-                // JSON/array rules
                 'json' => Code::make($label, $name)->json(),
                 'array' => KeyValue::make($label, $name),
-
-                // Numeric rules (already handled by type, but rules can override)
                 'numeric', 'integer', 'digits', 'digits_between' => Number::make($label, $name),
                 'decimal' => Number::make($label, $name)->step(0.01),
-
-                // Boolean rules
                 'boolean', 'accepted', 'accepted_if', 'declined', 'declined_if' => Boolean::make($label, $name),
-
                 default => null,
             };
 

@@ -4,19 +4,29 @@ declare(strict_types=1);
 
 namespace Workbench\App\Services\Actions;
 
-use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
-use Laravel\Nova\Actions\Action as NovaAction;
-use Laravel\Nova\Fields\ActionFields;
-use Laravel\Nova\Fields\Password;
-use Laravel\Nova\Fields\PasswordConfirmation;
 use Opscale\Actions\Action;
-use Throwable;
+use Opscale\Actions\Concerns\EmitsEvent;
 use Workbench\App\Models\User;
 
+/**
+ * Canonical SIPOC example.
+ *
+ *   Suppliers  : `user` is supplied by the system (prefill Closure that
+ *                reads the selected Nova model — or falls back to the
+ *                caller for API/CLI/MCP). `password` is user-supplied.
+ *   Inputs     : declared in parameters().
+ *   Process    : handle() hashes the password and saves it. Soft-fails if
+ *                the target user is missing (via $this->fail()).
+ *   Outputs    : declared in outputs().
+ *   Clients    : system — `use EmitsEvent` triggers
+ *                `opscale.action.reset-password` after every success.
+ */
 class ResetPassword extends Action
 {
+    use EmitsEvent;
+
     public function identifier(): string
     {
         return 'reset-password';
@@ -29,21 +39,21 @@ class ResetPassword extends Action
 
     public function description(): string
     {
-        return 'Resets a user\'s password';
+        return 'Resets a user\'s password.';
     }
 
     public function parameters(): array
     {
         return [
             [
-                'name' => 'email',
-                'description' => 'The email address of the user',
-                'type' => 'string',
-                'rules' => ['required', 'email', 'exists:users,email'],
+                'name' => 'user',
+                'description' => 'The user whose password will be reset.',
+                'type' => User::class,
+                'rules' => ['required'],
             ],
             [
                 'name' => 'password',
-                'description' => 'The new password',
+                'description' => 'The new password.',
                 'type' => 'string',
                 'rules' => ['required', 'string', 'min:8'],
             ],
@@ -51,75 +61,92 @@ class ResetPassword extends Action
     }
 
     /**
-     * Skip the email field on the Nova form — it's derived from the selected
-     * user, the operator only types the new password.
+     * `user` is supplied by the system when the action runs inside Nova
+     * against a selected user. In every other adapter (API/CLI/MCP) there
+     * is no selected model, so the closure returns null and the caller
+     * must provide the user as a normal input — the pipeline drops null
+     * prefill returns so the caller value survives the merge.
      */
-    public function getActionFields(): array
+    public function prefill(): array
     {
         return [
-            Password::make('Password', 'password')
-                ->rules('required', 'string', 'min:8')
-                ->required(),
-            PasswordConfirmation::make('Password Confirmation', 'password_confirmation')
-                ->rules('required', 'string', 'same:password')
-                ->required(),
+            'user' => fn ($ctx) => $ctx?->models?->first(),
         ];
     }
 
     /**
-     * Override the Nova execution so the email is taken from the selected
-     * user instead of being submitted by the operator.
+     * Provide the list of selectable users so API/CLI/MCP callers get a
+     * choice-driven UI instead of having to know an id ahead of time.
+     * Nova ignores this for `user` because the parameter is prefilled
+     * from the selected model, but for the other adapters it renders a
+     * `Select` / `enum` / `choice()` with the user's name as label.
      *
-     * Nova's validateFields() already ran our getActionFields() rules
-     * (required + same:password), so we update the user directly here
-     * without re-running parameters()-based validation — that pipeline
-     * would re-confirm against attributes mutated by the validator and
-     * spuriously fail the same:password rule.
+     * @return array<string, array<int|string, string>>
      */
-    public function asNovaAction(ActionFields $fields, Collection $models): mixed
+    public function options(): array
     {
-        try {
-            $attributes = array_merge($fields->toArray(), $this->prefill());
-            $attributes['email'] = $models->first()->email;
-
-            $this->fill($attributes);
-            $validatedData = $this->validateAttributes();
-
-            $label = $this->resolveParameterLabel($models);
-            $validatedData[$label] = $models;
-
-            $result = $this->handle($validatedData);
-
-            if (empty($result)) {
-                return NovaAction::danger('Something went wrong while executing the action.');
-            }
-
-            $message = $result['message'] ?? 'Action completed successfully.';
-
-            return NovaAction::message($message);
-        } catch (ValidationException $e) {
-            $errors = [];
-            foreach ($e->errors() as $field => $messages) {
-                $errors[] = "{$field}: ".implode(', ', $messages);
-            }
-
-            return NovaAction::danger(implode("\n", $errors));
-        } catch (Throwable $e) {
-            return NovaAction::danger($e->getMessage());
-        }
+        return [
+            'user' => User::query()
+                ->orderBy('name')
+                ->pluck('name', 'id')
+                ->all(),
+        ];
     }
 
-    public function handle(array $attributes = []): array
+    public function outputs(): array
     {
-        $user = User::where('email', $attributes['email'])->firstOrFail();
-
-        $user->update([
-            'password' => Hash::make($attributes['password']),
-        ]);
-
         return [
-            'success' => true,
-            'message' => 'Password reset successfully',
+            [
+                'name' => 'user_id',
+                'description' => 'ID of the user whose password was reset.',
+                'type' => 'integer',
+                'rules' => ['required', 'integer'],
+            ],
+            [
+                'name' => 'message',
+                'description' => 'Human-readable summary.',
+                'type' => 'string',
+                'rules' => ['required', 'string'],
+            ],
         ];
+    }
+
+    /**
+     * Business rule: an operator cannot reset their own password through
+     * this admin action — they should use the regular "forgot password"
+     * flow instead. Returning a string produces a soft-fail with that
+     * exact reason surfaced to the caller (Nova danger / API 422 /
+     * MCP error / CLI stderr).
+     */
+    public function canRun(array $inputs = []): bool|string
+    {
+        $user = $inputs['user'] ?? null;
+        $userId = $user instanceof User ? $user->getKey() : $user;
+
+        if ($userId !== null && Auth::id() !== null && (int) Auth::id() === (int) $userId) {
+            return 'You cannot reset your own password from this action.';
+        }
+
+        return true;
+    }
+
+    public function handle(array $inputs = []): array
+    {
+        $user = $inputs['user'];
+
+        if (! $user instanceof User) {
+            $user = User::find($user);
+        }
+
+        if ($user === null) {
+            return $this->fail('User not found.');
+        }
+
+        $user->update(['password' => Hash::make($inputs['password'])]);
+
+        return $this->succeed([
+            'user_id' => $user->getKey(),
+            'message' => 'Password reset successfully.',
+        ]);
     }
 }

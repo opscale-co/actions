@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Opscale\Actions\Concerns;
 
 use Laravel\Mcp\Response;
+use Opscale\Actions\Decorators\MCPToolDecorator;
+use Opscale\Actions\DesignPatterns\MCPToolDesignPattern;
 
 /**
  * Trait AsMCPTool
@@ -15,8 +17,8 @@ use Laravel\Mcp\Response;
  *
  * This trait should be used alongside AsAction from laravel-actions.
  *
- * @see \Opscale\Actions\Decorators\MCPToolDecorator
- * @see \Opscale\Actions\DesignPatterns\MCPToolDesignPattern
+ * @see MCPToolDecorator
+ * @see MCPToolDesignPattern
  */
 trait AsMCPTool
 {
