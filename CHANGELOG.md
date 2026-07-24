@@ -2,6 +2,10 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## 2.1.0 (2026-07-24)
+
+* feat(action): reintroduce SIPOC hooks with options(), canRun(), outputs() and result pipeline ([04d891f](https://github.com/opscale-co/actions/commit/04d891f))
+
 ## <small>2.0.2 (2026-06-30)</small>
 
 * fix(nova): assign models after validation to avoid validating model instances ([37e8c65](https://github.com/opscale-co/actions/commit/37e8c65))
