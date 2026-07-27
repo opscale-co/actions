@@ -8,7 +8,7 @@ use Opscale\Actions\Concerns\EmitsEvent;
 
 /**
  * Trait-marked variant of the probe action — used to assert that the
- * pipeline dispatches `opscale.action.{identifier}` after each success.
+ * pipeline dispatches `{identifier}` after each success.
  */
 class EmittingProbeAction extends SipocProbeAction
 {

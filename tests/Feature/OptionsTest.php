@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\JsonSchema\JsonSchemaTypeFactory;
+use Laravel\Nova\Fields\MultiSelect;
 use Laravel\Nova\Fields\Select;
 use Opscale\Actions\Tests\Fixtures\SipocProbeAction;
 
@@ -17,6 +18,19 @@ it('renders a Nova Select field when options() declares choices for the paramete
 
     expect($fields)->toHaveCount(1)
         ->and($fields[0])->toBeInstanceOf(Select::class);
+});
+
+it('renders a Nova MultiSelect field when options() declares choices for an array parameter', function (): void {
+    $action = new SipocProbeAction;
+    $action->paramsSpec = [
+        ['name' => 'channels', 'type' => 'array', 'rules' => ['required', 'array']],
+    ];
+    $action->optionsSpec = ['channels' => ['web' => 'Web', 'email' => 'Email']];
+
+    $fields = $action->getActionFields();
+
+    expect($fields)->toHaveCount(1)
+        ->and($fields[0])->toBeInstanceOf(MultiSelect::class);
 });
 
 it('emits an enum in the MCP JSON schema from options()', function (): void {

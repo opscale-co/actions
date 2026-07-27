@@ -12,8 +12,8 @@ it('dispatches a string-named event after a successful run when EmitsEvent is us
 
     (new EmittingProbeAction)->asController(Request::create('/', 'POST', ['value' => 'ok']));
 
-    Event::assertDispatched('opscale.action.emitting-probe', function (string $event, array $payload): bool {
-        return $event === 'opscale.action.emitting-probe'
+    Event::assertDispatched('emitting-probe', function (string $event, array $payload): bool {
+        return $event === 'emitting-probe'
             && $payload[0]['echoed'] === 'ok';
     });
 });
@@ -23,7 +23,7 @@ it('does not dispatch any event when the action does not use EmitsEvent', functi
 
     (new SipocProbeAction)->asController(Request::create('/', 'POST', ['value' => 'ok']));
 
-    Event::assertNotDispatched('opscale.action.sipoc-probe');
+    Event::assertNotDispatched('sipoc-probe');
 });
 
 it('does not dispatch on soft fail', function (): void {
@@ -34,7 +34,7 @@ it('does not dispatch on soft fail', function (): void {
 
     $action->asController(Request::create('/', 'POST', ['value' => 'x']));
 
-    Event::assertNotDispatched('opscale.action.emitting-probe');
+    Event::assertNotDispatched('emitting-probe');
 });
 
 it('does not dispatch on canRun block', function (): void {
@@ -45,7 +45,7 @@ it('does not dispatch on canRun block', function (): void {
 
     $action->asController(Request::create('/', 'POST', ['value' => 'x']));
 
-    Event::assertNotDispatched('opscale.action.emitting-probe');
+    Event::assertNotDispatched('emitting-probe');
 });
 
 it('does not dispatch on hard fail', function (): void {
@@ -58,17 +58,17 @@ it('does not dispatch on hard fail', function (): void {
 
     $action->asController(Request::create('/', 'POST', ['value' => 'x']));
 
-    Event::assertNotDispatched('opscale.action.emitting-probe');
+    Event::assertNotDispatched('emitting-probe');
 });
 
 it('wildcard listener captures every action-completed event', function (): void {
     $seen = [];
 
-    Event::listen('opscale.action.*', function (string $name, array $payload) use (&$seen): void {
+    Event::listen('*', function (string $name, array $payload) use (&$seen): void {
         $seen[] = $name;
     });
 
     (new EmittingProbeAction)->asController(Request::create('/', 'POST', ['value' => 'ok']));
 
-    expect($seen)->toContain('opscale.action.emitting-probe');
+    expect($seen)->toContain('emitting-probe');
 });

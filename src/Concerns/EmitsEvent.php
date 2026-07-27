@@ -8,14 +8,14 @@ namespace Opscale\Actions\Concerns;
  * Marker trait — declares the Action's outputs go to a SIPOC "system" client.
  *
  * When present, the pipeline dispatches a string-named event after a
- * successful `handle()`:
+ * successful `handle()`, named exactly after the action's identifier:
  *
- *   event("opscale.action.{$this->identifier()}", [$outputs]);
+ *   event($this->identifier(), [$outputs]);
  *
  * Consumers subscribe by identifier (no filtering needed):
  *
- *   Event::listen('opscale.action.reset-password', SendPasswordResetEmail::class);
- *   Event::listen('opscale.action.*', AuditActionCompleted::class);
+ *   Event::listen('reset-password', SendPasswordResetEmail::class);
+ *   Event::listen('*', AuditActionCompleted::class);
  *
  * No event is dispatched on soft fail (Result::fail or canRun() blocked) or
  * on hard fail (uncaught exception).

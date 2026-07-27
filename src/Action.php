@@ -125,7 +125,7 @@ abstract class Action
      * Get a unique slug identifier for this action.
      *
      * Used as Nova URI key, MCP tool name, Artisan command name and the
-     * suffix of the system event (`opscale.action.{identifier}`).
+     * name of the system event dispatched after each success.
      *
      * @return string A slug identifier (lowercase, hyphenated)
      */
@@ -174,7 +174,15 @@ abstract class Action
      * Each entry:
      *   ['name' => string, 'description' => string, 'type' => string, 'rules' => array]
      *
-     * @return array<int, array{name: string, description?: string, type?: string, rules?: array}>
+     * An entry may also carry an optional `options` key — a Nova-only
+     * rendering hint that turns the field into a Select (MultiSelect when
+     * `type` is `array`). It accepts a `Closure` returning `[value => label]`
+     * (resolved lazily at render time), a literal `[value => label]` array,
+     * or a backed-enum class-string (cases mapped value => name). The
+     * `options()` method still wins over this key and remains the
+     * cross-adapter mechanism (MCP enum, CLI choice).
+     *
+     * @return array<int, array{name: string, description?: string, type?: string, rules?: array, options?: Closure|array<int|string, string>|class-string}>
      */
     abstract public function parameters(): array;
 
@@ -251,7 +259,7 @@ abstract class Action
     // ── C · Clients ─────────────────────────────────────────────────────
     // System clients: `use Opscale\Actions\Concerns\EmitsEvent;` on the
     // concrete class — the pipeline dispatches
-    // `event("opscale.action.{identifier}", [$outputs])` after each success.
+    // `event("{identifier}", [$outputs])` after each success.
     // User clients: the outputs travel back to the caller through the
     // adapter's native response (Nova message, JSON body, CLI stdout,
     // MCP text). No extra declaration needed.
@@ -314,7 +322,10 @@ abstract class Action
      *
      *   1. Resolves `prefill()` — closures are invoked with the adapter context.
      *   2. Merges resolved prefill on top of raw user inputs (prefill wins).
-     *   3. Validates the merged bag against `parameters()` rules.
+     *   3. Validates the merged bag against `parameters()` rules, then applies
+     *      the optional `$afterValidation` transform to the validated bag
+     *      (adapter conveniences that must run after rules but before the
+     *      gate — e.g. Nova swapping UploadedFile instances for stored paths).
      *   4. Invokes `canRun($validated)` gate. false/string → soft-fail.
      *   5. Calls `handle($validated)`. Uncaught throwables propagate (hard fail).
      *   6. Wraps the raw return into a `Result` (detects `_status` marker set by
@@ -324,7 +335,7 @@ abstract class Action
      *   8. Validates outputs against `outputs()` rules — a violation is a
      *      programmer bug and re-throws as a `ValidationException`.
      *   9. If the action uses `EmitsEvent`, dispatches
-     *      `event("opscale.action.{identifier}", [$outputs])`.
+     *      `event("{identifier}", [$outputs])`.
      *  10. Returns the success `Result`.
      *
      * @param  array<string, mixed>  $rawUserInputs  Inputs supplied by the caller.
@@ -336,14 +347,22 @@ abstract class Action
      *                                        (e.g. the Nova selected-models
      *                                        collection injected as `user`
      *                                        or `users`).
+     * @param  Closure|null  $afterValidation  Adapter-supplied transform
+     *                                         applied to the validated input
+     *                                         bag, after rules run and before
+     *                                         `canRun()`/`handle()`.
      */
-    protected function execute(array $rawUserInputs, mixed $context = null, array $extras = []): Result
+    protected function execute(array $rawUserInputs, mixed $context = null, array $extras = [], ?Closure $afterValidation = null): Result
     {
         $resolvedPrefill = $this->resolvePrefill($context);
         $merged = array_merge($rawUserInputs, $resolvedPrefill);
 
         $this->fill($merged);
         $validated = array_merge($this->validateAttributes(), $extras);
+
+        if ($afterValidation instanceof Closure) {
+            $validated = $afterValidation($validated);
+        }
 
         $gate = $this->canRun($validated);
         if ($gate !== true) {
@@ -362,7 +381,7 @@ abstract class Action
         $this->validateOutputs($result->data());
 
         if ($this->usesEmitsEvent()) {
-            event("opscale.action.{$this->identifier()}", [$result->data()]);
+            event($this->identifier(), [$result->data()]);
         }
 
         return $result;

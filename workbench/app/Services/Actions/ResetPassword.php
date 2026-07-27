@@ -21,7 +21,7 @@ use Workbench\App\Models\User;
  *                the target user is missing (via $this->fail()).
  *   Outputs    : declared in outputs().
  *   Clients    : system — `use EmitsEvent` triggers
- *                `opscale.action.reset-password` after every success.
+ *                `reset-password` after every success.
  */
 class ResetPassword extends Action
 {
