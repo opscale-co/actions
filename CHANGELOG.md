@@ -2,6 +2,10 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## 2.2.0 (2026-07-27)
+
+* feat(nova): infer Nova fields from rules and per-parameter options sources ([74ec326](https://github.com/opscale-co/actions/commit/74ec326))
+
 ## 2.1.0 (2026-07-24)
 
 * feat(action): reintroduce SIPOC hooks with options(), canRun(), outputs() and result pipeline ([04d891f](https://github.com/opscale-co/actions/commit/04d891f))
