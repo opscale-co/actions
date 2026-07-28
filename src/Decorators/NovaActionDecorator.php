@@ -28,6 +28,12 @@ class NovaActionDecorator extends Action
 
         $this->name = $this->fromActionMethodOrProperty('getActionTitle', 'actionTitle', $title);
         $this->uriKey = $this->fromActionMethodOrProperty('getActionUriKey', 'actionUriKey', $uriKey);
+
+        $meta = $this->fromActionMethodOrProperty('getActionMeta', 'actionMeta', []);
+
+        if ($meta !== []) {
+            $this->withMeta($meta);
+        }
     }
 
     /**

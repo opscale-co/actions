@@ -178,6 +178,19 @@ class PlatformServer extends Server
 }
 ```
 
+### Custom Nova Meta
+
+To attach arbitrary Nova meta to an action, declare `getActionMeta()` (or an `$actionMeta` property) and the Nova decorator forwards it via `withMeta()` — the same convention already used for `getActionTitle()` and `getActionUriKey()`:
+
+```php
+public function getActionMeta(): array
+{
+    return ['showOnDetailToolbar' => true];
+}
+```
+
+This is how third-party Nova packages that read serialized action meta (toolbar buttons, custom action UIs, etc.) can be integrated without this package depending on them.
+
 ### Opinionated Design
 
 This package is an opinionated implementation that enforces the use of `WithAttributes` from [Laravel Actions](https://laravelactions.com). All input data flows through `fill()` and `validateAttributes()`, ensuring consistent parameters validation and attribute handling across all contexts.
