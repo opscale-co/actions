@@ -2,6 +2,10 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## 2.3.0 (2026-07-28)
+
+* feat(nova): forward wrapped action meta to Nova ([b4da804](https://github.com/opscale-co/actions/commit/b4da804))
+
 ## 2.2.0 (2026-07-27)
 
 * feat(nova): infer Nova fields from rules and per-parameter options sources ([74ec326](https://github.com/opscale-co/actions/commit/74ec326))
