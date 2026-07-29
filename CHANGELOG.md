@@ -2,6 +2,10 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## 2.4.0 (2026-07-29)
+
+* feat(nova): translatable field labels with per-parameter override (#2) ([883ca31](https://github.com/opscale-co/actions/commit/883ca31)), closes [#2](https://github.com/opscale-co/actions/issues/2)
+
 ## 2.3.0 (2026-07-28)
 
 * feat(nova): forward wrapped action meta to Nova ([b4da804](https://github.com/opscale-co/actions/commit/b4da804))
