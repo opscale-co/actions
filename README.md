@@ -145,6 +145,22 @@ class UpdateStatus extends Action
 
 Prefilled values always win over user-supplied values (an API client sending `note => 'override'` will still see the prefilled note in `handle()`).
 
+### Field labels
+
+Nova field labels come from the parameter name, humanized (`assessment_types` → "Assessment types") and passed through Laravel's translator. To localize the action modal, add the humanized key to your app's JSON lang file (e.g. `lang/es.json`):
+
+```json
+{ "Assessment types": "Tipos de prueba" }
+```
+
+When the humanized name isn't what you want, set an explicit `label` on the parameter — it is used verbatim, so translate it yourself:
+
+```php
+['name' => 'interviewer_id', 'label' => __('Interviewer'), 'type' => 'string', 'rules' => ['required', 'uuid', 'exists:users,id']],
+```
+
+An explicit `label` always wins over the translated fallback. Labels only affect Nova — the CLI keeps using the signature and MCP uses the parameter `description`.
+
 ### One Action, Multiple Contexts
 
 Now this single class can be used everywhere:
