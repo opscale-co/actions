@@ -9,6 +9,7 @@ use Closure;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -93,7 +94,7 @@ trait NovaActionAdapter
             $type = $parameter['type'] ?? 'string';
             $rules = $parameter['rules'] ?? [];
 
-            $field = $this->createNovaField($name, $type, $rules, $options, $parameter['options'] ?? null);
+            $field = $this->createNovaField($name, $type, $rules, $options, $parameter['options'] ?? null, $parameter['label'] ?? null);
 
             if ($description) {
                 $field = $field->help($description);
@@ -230,14 +231,16 @@ trait NovaActionAdapter
      *
      * Precedence: `options()` map → per-parameter `options` spec →
      * validation rules → primitive type (rules are more specific than the
-     * primitive type, so they win).
+     * primitive type, so they win). The label is the per-parameter `label`
+     * when given (verbatim — the author already translated it), otherwise
+     * the humanized name passed through the host translator.
      *
      * @param  array<int, mixed>  $rules
      * @param  array<string, array<int|string, string>>  $options
      */
-    protected function createNovaField(string $name, string $type, array $rules, array $options = [], mixed $parameterOptions = null): Field
+    protected function createNovaField(string $name, string $type, array $rules, array $options = [], mixed $parameterOptions = null, ?string $label = null): Field
     {
-        $label = str_replace('_', ' ', ucfirst($name));
+        $label ??= $this->translateParameterLabel($name);
 
         if (array_key_exists($name, $options) && ! empty($options[$name])) {
             return $this->selectFromParameterOptions($label, $name, $type, $options[$name]);
@@ -249,6 +252,20 @@ trait NovaActionAdapter
 
         return $this->fieldFromRule($label, $name, $rules)
             ?? $this->fieldFromType($label, $name, $type, $rules);
+    }
+
+    /**
+     * Humanize the parameter name and pass it through the host translator,
+     * so a JSON lang entry keyed by the humanized name ("Assessment types"
+     * => "Tipos de prueba") localizes the modal. Without a translation the
+     * humanized name is returned unchanged.
+     */
+    final protected function translateParameterLabel(string $name): string
+    {
+        $humanized = str_replace('_', ' ', ucfirst($name));
+        $translated = Lang::get($humanized);
+
+        return is_string($translated) ? $translated : $humanized;
     }
 
     /**

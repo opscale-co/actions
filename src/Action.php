@@ -182,7 +182,14 @@ abstract class Action
      * `options()` method still wins over this key and remains the
      * cross-adapter mechanism (MCP enum, CLI choice).
      *
-     * @return array<int, array{name: string, description?: string, type?: string, rules?: array, options?: Closure|array<int|string, string>|class-string}>
+     * An entry may also carry an optional `label` key — the human label for
+     * the Nova form field, used verbatim (translate it yourself:
+     * `'label' => __('Interviewer')`). When absent, the humanized name
+     * (`interviewer_id` → "Interviewer id") is passed through `__()` so the
+     * host can translate it from its JSON lang files. Nova-only — the CLI
+     * uses the signature and MCP uses `description`.
+     *
+     * @return array<int, array{name: string, description?: string, type?: string, rules?: array, options?: Closure|array<int|string, string>|class-string, label?: string}>
      */
     abstract public function parameters(): array;
 
