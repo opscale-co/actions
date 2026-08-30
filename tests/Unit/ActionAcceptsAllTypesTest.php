@@ -60,10 +60,14 @@ it('accepts an arbitrary PHP value-object', function (): void {
         ->and($action->payload->weight)->toBe(7);
 });
 
-it('round-trips every type through handle()', function (): void {
+it('round-trips every type through the run() pipeline', function (): void {
     $user = User::factory()->create();
     $payload = new Payload(reference: 'X', weight: 1);
 
+    // run() drives the full execute() pipeline and returns a Result. Note the
+    // caller passes count => 3, but EchoAction::prefill() supplies count => 10,
+    // and prefill wins — proving run() applies the same system-supplied values
+    // every adapter does.
     $result = EchoAction::run([
         'name' => 'go',
         'count' => 3,
@@ -75,16 +79,20 @@ it('round-trips every type through handle()', function (): void {
         'payload' => $payload,
     ]);
 
-    expect($result['received']['name'])->toBe('go')
-        ->and($result['received']['count'])->toBe(3)
-        ->and($result['received']['price'])->toBe(1.25)
-        ->and($result['received']['active'])->toBeFalse()
-        ->and($result['received']['tags'])->toEqual(['x'])
-        ->and($result['received']['status'])->toBe('pending')
-        ->and($result['received']['user'])->toBeInstanceOf(User::class)
-        ->and($result['received']['payload'])->toBeInstanceOf(Payload::class);
+    expect($result->isSuccess())->toBeTrue();
 
-    expect($result['types'])->toEqual([
+    $data = $result->data();
+
+    expect($data['received']['name'])->toBe('go')
+        ->and($data['received']['count'])->toBe(10)
+        ->and($data['received']['price'])->toBe(1.25)
+        ->and($data['received']['active'])->toBeFalse()
+        ->and($data['received']['tags'])->toEqual(['x'])
+        ->and($data['received']['status'])->toBe('pending')
+        ->and($data['received']['user'])->toBeInstanceOf(User::class)
+        ->and($data['received']['payload'])->toBeInstanceOf(Payload::class);
+
+    expect($data['types'])->toEqual([
         'name' => 'string',
         'count' => 'int',
         'price' => 'float',

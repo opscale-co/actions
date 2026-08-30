@@ -119,6 +119,24 @@ abstract class Action
 
     private const MESSAGE_KEY = '_message';
 
+    // ── Pipeline (internal) ─────────────────────────────────────────────
+
+    /**
+     * Run the full SIPOC pipeline programmatically and return the Result.
+     *
+     * Overrides Lorisleiva\Actions\Concerns\AsObject::run(), which would call
+     * handle() directly. Routing through execute() means prefill, validation,
+     * the canRun() gate, output validation and events all fire — the same path
+     * every adapter takes — so Actions can be unit-tested without an adapter.
+     *
+     * @param  array<string, mixed>  $inputs  Caller-supplied inputs.
+     * @param  mixed  $context  Optional context passed to prefill() closures.
+     */
+    public static function run(array $inputs = [], mixed $context = null): Result
+    {
+        return static::make()->execute($inputs, $context);
+    }
+
     // ── Metadata ────────────────────────────────────────────────────────
 
     /**
@@ -316,8 +334,6 @@ abstract class Action
 
         return $rules;
     }
-
-    // ── Pipeline (internal) ─────────────────────────────────────────────
 
     /**
      * Run the full SIPOC pipeline and return a `Result`.
