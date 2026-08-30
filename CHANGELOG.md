@@ -2,6 +2,21 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## 3.0.0 (2026-08-30)
+
+* ci: bump CI PHP to 8.3 to match the composer ^8.3 requirement ([17ff343](https://github.com/opscale-co/actions/commit/17ff343))
+* feat(action)!: drive run() through the SIPOC execute() pipeline ([d34cda2](https://github.com/opscale-co/actions/commit/d34cda2))
+
+
+### BREAKING CHANGE
+
+* Action::run() now returns a Result and applies prefill()
+instead of calling handle() directly. Callers relying on the previous raw
+array return must read Result::data().
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01XV23sQeMpHkBKS7AYmRawx
+
 ## 2.4.0 (2026-07-29)
 
 * feat(nova): translatable field labels with per-parameter override (#2) ([883ca31](https://github.com/opscale-co/actions/commit/883ca31)), closes [#2](https://github.com/opscale-co/actions/issues/2)
