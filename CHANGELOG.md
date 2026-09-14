@@ -2,6 +2,10 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## <small>3.0.1 (2026-09-14)</small>
+
+* fix(nova): fall back to key column when exists: table has no name column ([276ad3f](https://github.com/opscale-co/actions/commit/276ad3f))
+
 ## 3.0.0 (2026-08-30)
 
 * ci: bump CI PHP to 8.3 to match the composer ^8.3 requirement ([17ff343](https://github.com/opscale-co/actions/commit/17ff343))
