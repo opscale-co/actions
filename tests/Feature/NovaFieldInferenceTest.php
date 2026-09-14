@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Nova\Fields\Boolean;
 use Laravel\Nova\Fields\Code;
 use Laravel\Nova\Fields\Currency;
@@ -117,4 +119,40 @@ it('uses the rule-derived field instead of falling back to the primitive type', 
     $field = novaInferredField(['name' => 'start', 'type' => 'string', 'rules' => ['required', 'date']]);
 
     expect($field::class)->toBe(Date::class);
+});
+
+it('renders an exists: rule as a Select mapping the key to the name column', function (): void {
+    Schema::create('probe_named', function ($table): void {
+        $table->string('id')->primary();
+        $table->string('name');
+    });
+    DB::table('probe_named')->insert([
+        ['id' => '01A', 'name' => 'Alpha'],
+        ['id' => '01B', 'name' => 'Beta'],
+    ]);
+
+    $field = novaInferredField(['name' => 'ref', 'type' => 'string', 'rules' => ['required', 'exists:probe_named,id']]);
+
+    expect($field::class)->toBe(Select::class);
+    assert($field instanceof Select);
+    expect(value($field->optionsCallback))->toBe(['01A' => 'Alpha', '01B' => 'Beta']);
+});
+
+it('falls back to the key column when the exists: table has no name column', function (): void {
+    // Transactional aggregates (portfolio_credits, write_offs, …) reference by
+    // id and have no "name" column; the Select must not blow up on it.
+    Schema::create('probe_nameless', function ($table): void {
+        $table->string('id')->primary();
+        $table->string('status');
+    });
+    DB::table('probe_nameless')->insert([
+        ['id' => '01X', 'status' => 'open'],
+        ['id' => '01Y', 'status' => 'closed'],
+    ]);
+
+    $field = novaInferredField(['name' => 'ref', 'type' => 'string', 'rules' => ['required', 'exists:probe_nameless,id']]);
+
+    expect($field::class)->toBe(Select::class);
+    assert($field instanceof Select);
+    expect(value($field->optionsCallback))->toBe(['01X' => '01X', '01Y' => '01Y']);
 });

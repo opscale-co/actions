@@ -10,6 +10,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Lang;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -370,7 +371,18 @@ trait NovaActionAdapter
                 $keyColumn = $parts[1] ?? 'id';
 
                 return Select::make($label, $name)
-                    ->options(fn (): array => DB::table($table)->pluck('name', $keyColumn)->all())
+                    ->options(function () use ($table, $keyColumn): array {
+                        // Not every referenced table has a "name" column
+                        // (e.g. transactional aggregates). Fall back to a
+                        // sensible label column, and ultimately to the key
+                        // itself, so the Select never blows up on a missing
+                        // "name" property.
+                        $labelColumn = collect(['name', 'title', 'label', 'code', 'description'])
+                            ->first(fn (string $col): bool => Schema::hasColumn($table, $col))
+                            ?? $keyColumn;
+
+                        return DB::table($table)->pluck($labelColumn, $keyColumn)->all();
+                    })
                     ->displayUsingLabels();
             }
         }
