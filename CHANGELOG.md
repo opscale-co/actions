@@ -2,6 +2,19 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## 4.0.0 (2026-09-23)
+
+* feat(events)!: move dispatch into EmitsEvent concern with opscale.actions prefix ([7fbbf12](https://github.com/opscale-co/actions/commit/7fbbf12))
+
+
+### BREAKING CHANGE
+
+* listeners must subscribe to `opscale.actions.{identifier}`
+(e.g. `opscale.actions.reset-password` or `opscale.actions.*`) instead of the
+bare identifier.
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
 ## <small>3.0.1 (2026-09-14)</small>
 
 * fix(nova): fall back to key column when exists: table has no name column ([276ad3f](https://github.com/opscale-co/actions/commit/276ad3f))
