@@ -12,8 +12,8 @@ it('dispatches a string-named event after a successful run when EmitsEvent is us
 
     (new EmittingProbeAction)->asController(Request::create('/', 'POST', ['value' => 'ok']));
 
-    Event::assertDispatched('emitting-probe', function (string $event, array $payload): bool {
-        return $event === 'emitting-probe'
+    Event::assertDispatched('opscale.actions.emitting-probe', function (string $event, array $payload): bool {
+        return $event === 'opscale.actions.emitting-probe'
             && $payload[0]['echoed'] === 'ok';
     });
 });
@@ -23,7 +23,7 @@ it('does not dispatch any event when the action does not use EmitsEvent', functi
 
     (new SipocProbeAction)->asController(Request::create('/', 'POST', ['value' => 'ok']));
 
-    Event::assertNotDispatched('sipoc-probe');
+    Event::assertNotDispatched('opscale.actions.sipoc-probe');
 });
 
 it('does not dispatch on soft fail', function (): void {
@@ -34,7 +34,7 @@ it('does not dispatch on soft fail', function (): void {
 
     $action->asController(Request::create('/', 'POST', ['value' => 'x']));
 
-    Event::assertNotDispatched('emitting-probe');
+    Event::assertNotDispatched('opscale.actions.emitting-probe');
 });
 
 it('does not dispatch on canRun block', function (): void {
@@ -45,7 +45,7 @@ it('does not dispatch on canRun block', function (): void {
 
     $action->asController(Request::create('/', 'POST', ['value' => 'x']));
 
-    Event::assertNotDispatched('emitting-probe');
+    Event::assertNotDispatched('opscale.actions.emitting-probe');
 });
 
 it('does not dispatch on hard fail', function (): void {
@@ -58,7 +58,7 @@ it('does not dispatch on hard fail', function (): void {
 
     $action->asController(Request::create('/', 'POST', ['value' => 'x']));
 
-    Event::assertNotDispatched('emitting-probe');
+    Event::assertNotDispatched('opscale.actions.emitting-probe');
 });
 
 it('wildcard listener captures every action-completed event', function (): void {
@@ -70,5 +70,5 @@ it('wildcard listener captures every action-completed event', function (): void 
 
     (new EmittingProbeAction)->asController(Request::create('/', 'POST', ['value' => 'ok']));
 
-    expect($seen)->toContain('emitting-probe');
+    expect($seen)->toContain('opscale.actions.emitting-probe');
 });

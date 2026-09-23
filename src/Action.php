@@ -14,7 +14,6 @@ use Opscale\Actions\Adapters\MCPToolAdapter;
 use Opscale\Actions\Adapters\NovaActionAdapter;
 use Opscale\Actions\Concerns\AsMCPTool;
 use Opscale\Actions\Concerns\AsNovaAction;
-use Opscale\Actions\Concerns\EmitsEvent;
 use Opscale\Actions\Concerns\SerializesModels;
 use Opscale\Actions\Results\Result;
 
@@ -284,7 +283,7 @@ abstract class Action
     // ── C · Clients ─────────────────────────────────────────────────────
     // System clients: `use Opscale\Actions\Concerns\EmitsEvent;` on the
     // concrete class — the pipeline dispatches
-    // `event("{identifier}", [$outputs])` after each success.
+    // `event("opscale.actions.{identifier}", [$outputs])` after each success.
     // User clients: the outputs travel back to the caller through the
     // adapter's native response (Nova message, JSON body, CLI stdout,
     // MCP text). No extra declaration needed.
@@ -358,7 +357,7 @@ abstract class Action
      *   8. Validates outputs against `outputs()` rules — a violation is a
      *      programmer bug and re-throws as a `ValidationException`.
      *   9. If the action uses `EmitsEvent`, dispatches
-     *      `event("{identifier}", [$outputs])`.
+     *      `event("opscale.actions.{identifier}", [$outputs])`.
      *  10. Returns the success `Result`.
      *
      * @param  array<string, mixed>  $rawUserInputs  Inputs supplied by the caller.
@@ -403,8 +402,8 @@ abstract class Action
 
         $this->validateOutputs($result->data());
 
-        if ($this->usesEmitsEvent()) {
-            event($this->identifier(), [$result->data()]);
+        if (method_exists($this, 'emitEvent')) {
+            $this->emitEvent($this->identifier(), $result->data());
         }
 
         return $result;
@@ -444,18 +443,6 @@ abstract class Action
     }
 
     /**
-     * Detect whether the action uses the EmitsEvent trait.
-     */
-    protected function usesEmitsEvent(): bool
-    {
-        return in_array(
-            EmitsEvent::class,
-            $this->classUsesRecursive(static::class),
-            true,
-        );
-    }
-
-    /**
      * Validate the handle() return against outputs() rules. Failure here is
      * a programmer error, not a user error — re-throw as-is.
      *
@@ -492,26 +479,5 @@ abstract class Action
         }
 
         return Result::success($raw);
-    }
-
-    /**
-     * Local copy of Laravel's class_uses_recursive helper (avoids a hard
-     * dependency on the global function during test discovery).
-     *
-     * @return array<int, string>
-     */
-    private function classUsesRecursive(string $class): array
-    {
-        if (function_exists('class_uses_recursive')) {
-            return class_uses_recursive($class);
-        }
-
-        $results = [];
-
-        foreach (array_reverse(class_parents($class) ?: []) + [$class => $class] as $c) {
-            $results += trait_uses_recursive($c);
-        }
-
-        return array_unique($results);
     }
 }
