@@ -2,6 +2,10 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## 4.1.0 (2026-10-05)
+
+* feat(listener): add AsListener support and ListenerAdapter ([4cacccc](https://github.com/opscale-co/actions/commit/4cacccc))
+
 ## 4.0.0 (2026-09-23)
 
 * feat(events)!: move dispatch into EmitsEvent concern with opscale.actions prefix ([7fbbf12](https://github.com/opscale-co/actions/commit/7fbbf12))
