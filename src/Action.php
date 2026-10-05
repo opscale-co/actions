@@ -7,9 +7,11 @@ namespace Opscale\Actions;
 use Closure;
 use Illuminate\Support\Facades\Validator;
 use Lorisleiva\Actions\Concerns\AsAction;
+use Lorisleiva\Actions\Concerns\AsListener;
 use Lorisleiva\Actions\Concerns\WithAttributes;
 use Opscale\Actions\Adapters\CommandAdapter;
 use Opscale\Actions\Adapters\ControllerAdapter;
+use Opscale\Actions\Adapters\ListenerAdapter;
 use Opscale\Actions\Adapters\MCPToolAdapter;
 use Opscale\Actions\Adapters\NovaActionAdapter;
 use Opscale\Actions\Concerns\AsMCPTool;
@@ -97,10 +99,12 @@ use Opscale\Actions\Results\Result;
 abstract class Action
 {
     use AsAction;
+    use AsListener;
     use AsMCPTool;
     use AsNovaAction;
     use CommandAdapter;
     use ControllerAdapter;
+    use ListenerAdapter;
     use MCPToolAdapter;
     use NovaActionAdapter;
     use SerializesModels;
