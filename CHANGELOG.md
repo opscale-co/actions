@@ -2,6 +2,17 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## 5.0.0 (2026-11-07)
+
+* feat(laravel): require Laravel 13, drop Laravel 11/12 ([7443ac3](https://github.com/opscale-co/actions/commit/7443ac3))
+
+
+### BREAKING CHANGE
+
+* requires PHP 8.3+ and the Laravel 13 toolchain; drops Laravel 5-12.
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
 ## 4.1.0 (2026-10-05)
 
 * feat(listener): add AsListener support and ListenerAdapter ([4cacccc](https://github.com/opscale-co/actions/commit/4cacccc))
